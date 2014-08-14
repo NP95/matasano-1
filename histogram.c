@@ -72,8 +72,8 @@ int is_cleartext(unsigned char *in, unsigned int size)
 		}
 	}
 
-// 	if(hits > 3)
-	if(hits > 4)
+	if(hits > 3)
+// 	if(hits > 4)
 		return 0;
 	else
 		return -1;

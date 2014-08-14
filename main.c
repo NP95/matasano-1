@@ -144,7 +144,7 @@ int main(void){
 	xor_key(&s1c5_cipher, s1c5_clear, strlen(s1c5_clear), s1c5_key, strlen(s1c5_key));
 	hex_encode(&s1c5_cipher_hex, s1c5_cipher, strlen(s1c5_cipher));
 
-	printf("s1c5_cipher[str] = '%s'\n", s1c5_cipher);
+// 	printf("s1c5_cipher[str] = '%s'\n", s1c5_cipher);
 	printf("s1c5_cipher[hex] = '%s'\n", s1c5_cipher_hex);
 
 	free(s1c5_cipher);
@@ -247,6 +247,8 @@ int main(void){
 		}
 	}
 
+	unsigned char complete_key[res_keysize];
+
 	for(i=0; i<res_keysize; i++) {
 // 		hex_encode(&block_hex, blocks[i], num_blocks);
 // 		printf("block[%d] = '%s'\n", i, block_hex);
@@ -254,14 +256,17 @@ int main(void){
 
 		if(attack_single_byte_xor(&clear_text, &key, blocks[i], num_blocks) == 0) {
 // 			printf("[%d] block_clear[%d] = '%s'\n", res_keysize, i, clear_text);
-			printf("[%d] block_key[%d] = '%c'\n", res_keysize, i, key[0]);
+// 			printf("[%d] block_key[%d] = '%c'\n", res_keysize, i, key[0]);
+			complete_key[i] = key[0];
 		}
 
 		free(clear_text);
 		free(key);
 	}
+	complete_key[res_keysize] = '\0';
+	printf("key = '%s'\n", complete_key);
 
-	xor_key(&clear_text, s1c6_cipher, s1c6_cipher_len, "Terminator X: Bring the noise", res_keysize+1);
+	xor_key(&clear_text, s1c6_cipher, s1c6_cipher_len, complete_key, res_keysize);
 
 	printf("clear_text = {\n%s\n}\n\n", clear_text);
 
@@ -275,6 +280,13 @@ int main(void){
 	printf("*** SET 1 - CHALLENGE 7\n");
 	printf("*** AES in ECB mode\n\n");
 
+	fp = fopen("7.txt", "r");
+
+	if(fp==NULL)
+		return -1;
+
+	len=0;
+	s1c6_cipher_len=0;
 	while((read = getline(&line_str, &len, fp)) != -1) {
 		for(i=0; i<read-1; i++) {
 			s1c6_cipher_b64[s1c6_cipher_len+i] = line_str[i];
@@ -291,41 +303,65 @@ int main(void){
 		free(line_str);
 	close(fp);
 
-	key = malloc(16);
-	memset(key, 0, 16);
+	key = malloc(17);
+	memset(key, 0, 17);
 	strcpy(key, "YELLOW SUBMARINE");
 	printf("key = '%s'\n", key);
 
 	clear_text = malloc(s1c6_cipher_len);
 	memset(clear_text, 0, s1c6_cipher_len);
 
-// 	AES_KEY dec_key;
-// 	AES_set_decrypt_key(key, 128, &dec_key);
-// 	for(i=0; i<=s1c6_cipher_len; i+=16) {
-// 		AES_ecb_encrypt(s1c6_cipher+i, clear_text+i, &dec_key, AES_DECRYPT);
-// 	}
-
-	EVP_CIPHER_CTX *ctx;
-
-	ctx = (EVP_CIPHER_CTX *) malloc(sizeof(EVP_CIPHER_CTX));
-	EVP_CIPHER_CTX_init(ctx);
-	EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb( ), 0, key, 0);
-
-	int ol;
-	char *pt;
-
-	pt = (char *) malloc(s1c6_cipher_len + EVP_CIPHER_CTX_block_size(ctx)+1);
-
-	EVP_DecryptUpdate(ctx, pt, &ol, s1c6_cipher, s1c6_cipher_len);
-
-	if(!ol) {
-		free(pt);
+	AES_KEY dec_key;
+	AES_set_decrypt_key(key, 128, &dec_key);
+	for(i=0; i<s1c6_cipher_len; i+=16) {
+		AES_ecb_encrypt(s1c6_cipher+i, clear_text+i, &dec_key, AES_DECRYPT);
 	}
 
-// 	printf("clear_text = '%s'\n", clear_text);
-	printf("clear_text = '%s'\n", pt);
-	free(pt);
+// 	EVP_CIPHER_CTX *ctx;
+
+// 	ctx = (EVP_CIPHER_CTX *) malloc(sizeof(EVP_CIPHER_CTX));
+// 	EVP_CIPHER_CTX_init(ctx);
+// 	EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb( ), 0, key, 0);
+
+// 	int ol;
+// 	char *pt;
+
+// 	pt = (char *) malloc(s1c6_cipher_len + EVP_CIPHER_CTX_block_size(ctx)+1);
+
+// 	EVP_DecryptUpdate(ctx, pt, &ol, s1c6_cipher, s1c6_cipher_len);
+
+// 	if(!ol) {
+// 		free(pt);
+// 	}
+
+	printf("clear_text = '%s'\n", clear_text);
+// 	printf("clear_text = '%s'\n", pt);
+// 	free(pt);
 	free(s1c6_cipher);
 	free(clear_text);
+	free(key);
+
+	/***    SET 1 - Challenge 8    ***/
+	/*** AES in ECB mode DETECTION ***/
+	printf("\n*** SET 1 - CHALLENGE 8\n");
+	printf("*** AES in ECB mode DETECTION\n\n");
+
+	fp = fopen("8.txt", "r");
+
+	if(fp==NULL)
+		return -1;
+
+	len=0;
+	s1c6_cipher_len=0;
+	while((read = getline(&line_str, &len, fp)) != -1) {
+// 		for(i=0; i<read-1; i++) {
+// 			s1c6_cipher_b64[s1c6_cipher_len+i] = line_str[i];
+// 		}
+// 		s1c6_cipher_len += read-1;
+	}
+
+	if(line_str)
+		free(line_str);
+	close(fp);
 }
 

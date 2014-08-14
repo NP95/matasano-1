@@ -18,15 +18,13 @@ void fixed_xor(unsigned char **out, unsigned char *in1, unsigned char *in2, unsi
 
 unsigned int xor_key(unsigned char **out, unsigned char *in, unsigned int in_size, unsigned char *key, unsigned int key_size)
 {
-	unsigned int i, j;
-	unsigned int out_size = (in_size>key_size) ? in_size : key_size;
+	unsigned int i;
 
-	(*out) = malloc((out_size+1)*sizeof(unsigned char));
-	memset((*out), 0, (out_size+1)*sizeof(unsigned char));
+	(*out) = malloc((in_size+1)*sizeof(unsigned char));
+	memset((*out), 0, (in_size+1)*sizeof(unsigned char));
 
-	for(i=j=0; i<out_size && in[i]!=0; i++) {
-		(*out)[i] = in[i] ^ key[j];
-		j = (j<key_size-1) ? ++j : 0;
+	for(i=0; i<in_size; i++) {
+		(*out)[i] = in[i] ^ key[i % key_size];
 	}
 
 	return i;

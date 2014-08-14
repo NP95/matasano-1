@@ -7,8 +7,8 @@ Be warned: this code is _VERY_ hacky!
 
 Progress:
 
-    Set 1 - Challenge 1 .. 6 [done]
-    Set 1 - Challenge 7      [working]
+    Set 1 - Challenge 1 .. 7 [done]
+    Set 1 - Challenge 8      [working]
 
 How to use:
 
