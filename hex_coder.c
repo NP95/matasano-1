@@ -1,6 +1,6 @@
 #include "hex_coder.h"
 
-unsigned int hex_encode(char **dst_str, const unsigned char *src_hex, unsigned int src_size)
+unsigned int hex_encode(unsigned char **dst_str, const unsigned char *src_hex, unsigned int src_size)
 {
 	unsigned int i;
 	unsigned int chars = 0;
@@ -18,7 +18,7 @@ unsigned int hex_encode(char **dst_str, const unsigned char *src_hex, unsigned i
 	return chars;
 }
 
-unsigned int hex_decode(unsigned char **dst_hex, const char *src_str, unsigned int src_len)
+unsigned int hex_decode(unsigned char **dst_hex, const unsigned char *src_str, unsigned int src_len)
 {
 	unsigned int i, a;
 	unsigned int bytes = 0;

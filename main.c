@@ -35,7 +35,7 @@ int main(void){
 	printf("\n*** SET 1 - CHALLENGE 2\n*** FIXED XOR\n\n");
 	char *data_str = "1c0111001f010100061a024b53535009181c";
 	char *key_str = "686974207468652062756c6c277320657965";
-	char *xor_str = 0;
+	unsigned char *xor_str = 0;
 
 	unsigned char *data = 0;
 	unsigned char *key = 0;
@@ -139,7 +139,7 @@ int main(void){
 	unsigned char *s1c5_clear = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal\0";
 	unsigned char *s1c5_key = "ICE";
 	unsigned char *s1c5_cipher;
-	char *s1c5_cipher_hex;
+	unsigned char *s1c5_cipher_hex;
 
 	xor_key(&s1c5_cipher, s1c5_clear, strlen(s1c5_clear), s1c5_key, strlen(s1c5_key));
 	hex_encode(&s1c5_cipher_hex, s1c5_cipher, strlen(s1c5_cipher));
@@ -201,32 +201,13 @@ int main(void){
 	unsigned int num_tmp=0;
 
 	for(keysize=2; keysize<41; keysize++) {
-		hamming=0;
-		num_tmp = s1c6_cipher_len / keysize;
-
-		tmp1 = malloc((keysize+1)*sizeof(unsigned char));
-		memset(tmp1, 0, (keysize+1)*sizeof(unsigned char));
-		tmp2 = malloc((keysize+1)*sizeof(unsigned char));
-		memset(tmp2, 0, (keysize+1)*sizeof(unsigned char));
-
-		for(k=0; k<num_tmp; k++) {
-			for(i=0; i<keysize; i++) {
-				tmp1[i] = s1c6_cipher[i+k*keysize];
-				tmp2[i] = s1c6_cipher[i+k*keysize+keysize];
-			}
-
-			hamming += hamming_distance(tmp1, tmp2, keysize);
-		}
-
-		hamming_norm = (double) hamming / (double) num_tmp / (double) keysize;
+		hamming_norm = norm_hamming_distance(s1c6_cipher, s1c6_cipher_len, keysize);
 // 		printf("hamming_norm(keysize=%d) = %f\n", keysize, hamming_norm);
 
 		if(hamming_norm < res_dist) {
 			res_dist = hamming_norm;
 			res_keysize = keysize;
 		}
-		free(tmp1);
-		free(tmp2);
 	}
 
 	printf("keysize = %d (dist_norm = %f)\n", res_keysize, res_dist);
@@ -317,26 +298,8 @@ int main(void){
 		AES_ecb_encrypt(s1c6_cipher+i, clear_text+i, &dec_key, AES_DECRYPT);
 	}
 
-// 	EVP_CIPHER_CTX *ctx;
-
-// 	ctx = (EVP_CIPHER_CTX *) malloc(sizeof(EVP_CIPHER_CTX));
-// 	EVP_CIPHER_CTX_init(ctx);
-// 	EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb( ), 0, key, 0);
-
-// 	int ol;
-// 	char *pt;
-
-// 	pt = (char *) malloc(s1c6_cipher_len + EVP_CIPHER_CTX_block_size(ctx)+1);
-
-// 	EVP_DecryptUpdate(ctx, pt, &ol, s1c6_cipher, s1c6_cipher_len);
-
-// 	if(!ol) {
-// 		free(pt);
-// 	}
-
 	printf("clear_text = '%s'\n", clear_text);
-// 	printf("clear_text = '%s'\n", pt);
-// 	free(pt);
+
 	free(s1c6_cipher);
 	free(clear_text);
 	free(key);
@@ -353,12 +316,26 @@ int main(void){
 
 	len=0;
 	s1c6_cipher_len=0;
+	num_blocks = 0;
+	j=0;
+	res_dist = 10;
 	while((read = getline(&line_str, &len, fp)) != -1) {
-// 		for(i=0; i<read-1; i++) {
-// 			s1c6_cipher_b64[s1c6_cipher_len+i] = line_str[i];
-// 		}
-// 		s1c6_cipher_len += read-1;
+		s1c6_cipher_len = hex_decode(&s1c6_cipher, line_str, read);
+// 		printf("ciph(%d) = '%s'\n", s1c6_cipher_len, s1c6_cipher);
+		hamming_norm = norm_hamming_distance(s1c6_cipher, s1c6_cipher_len, 16);
+		printf("[%d] hamming_norm = %f\n", j+1, hamming_norm);
+
+		if(hamming_norm < res_dist) {
+			res_dist = hamming_norm;
+			res_keysize = j+1;
+		}
+
+		j++;
+
+		free(s1c6_cipher);
 	}
+
+	printf("AES-ECB cipher found at line: %d\n", res_keysize);
 
 	if(line_str)
 		free(line_str);
