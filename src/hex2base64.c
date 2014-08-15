@@ -1,4 +1,4 @@
-#include "hex2base64.h"
+#include "../include/hex2base64.h"
 
 /* A BASE-64 ENCODER USING OPENSSL (by Len Schulwitz)
  * Parameter 1: A pointer to the data you want to base-64 encode.

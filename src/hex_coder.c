@@ -1,4 +1,4 @@
-#include "hex_coder.h"
+#include "../include/hex_coder.h"
 
 unsigned int hex_encode(unsigned char **dst_str, const unsigned char *src_hex, unsigned int src_size)
 {

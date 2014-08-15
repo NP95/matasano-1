@@ -1,5 +1,5 @@
-#include "histogram.h"
-#include "xor.h"
+#include "../include/histogram.h"
+#include "../include/xor.h"
 #include <stdio.h>
 
 void fixed_xor(unsigned char **out, unsigned char *in1, unsigned char *in2, unsigned int in_size)

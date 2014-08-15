@@ -1,4 +1,4 @@
-#include "histogram.h"
+#include "../include/histogram.h"
 
 void init_histogram(max_hist_t *hist)
 {

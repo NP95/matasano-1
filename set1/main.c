@@ -3,11 +3,11 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 
-#include "hex2base64.h"
-#include "hex_coder.h"
-#include "xor.h"
-#include "histogram.h"
-#include "hamming.h"
+#include "../include/hex2base64.h"
+#include "../include/hex_coder.h"
+#include "../include/xor.h"
+#include "../include/histogram.h"
+#include "../include/hamming.h"
 
 int main(void){
 	/***  Set 1 Challenge 1  ***/
@@ -317,17 +317,17 @@ int main(void){
 	len=0;
 	s1c6_cipher_len=0;
 	num_blocks = 0;
-	j=0;
-	res_dist = 10;
+	j=1;
+	res_dist = 0;
 	while((read = getline(&line_str, &len, fp)) != -1) {
 		s1c6_cipher_len = hex_decode(&s1c6_cipher, line_str, read);
 // 		printf("ciph(%d) = '%s'\n", s1c6_cipher_len, s1c6_cipher);
 		hamming_norm = norm_hamming_distance(s1c6_cipher, s1c6_cipher_len, 16);
-		printf("[%d] hamming_norm = %f\n", j+1, hamming_norm);
+		printf("[%d] hamming_norm = %f\n", j, hamming_norm);
 
-		if(hamming_norm < res_dist) {
+		if(hamming_norm > res_dist) {
 			res_dist = hamming_norm;
-			res_keysize = j+1;
+			res_keysize = j;
 		}
 
 		j++;
