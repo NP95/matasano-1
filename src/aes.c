@@ -1,5 +1,4 @@
 #include "../include/aes.h"
-#include "../include/xor.h"
 
 unsigned int aes_ecb_encrypt(unsigned int block_len_bits, unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *key)
 {
@@ -14,7 +13,6 @@ unsigned int aes_ecb_encrypt(unsigned int block_len_bits, unsigned char *ciphert
 	return i;
 }
 
-
 unsigned int aes_ecb_decrypt(unsigned int block_len_bits, unsigned char *plaintext, unsigned char *ciphertext, unsigned int ciphertext_len, unsigned char *key)
 {
 	unsigned int i;
@@ -27,7 +25,6 @@ unsigned int aes_ecb_decrypt(unsigned int block_len_bits, unsigned char *plainte
 
 	return i;
 }
-
 
 unsigned int aes_cbc_encrypt(unsigned int block_len_bits, unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *key, unsigned char *iv)
 {
@@ -64,7 +61,6 @@ unsigned int aes_cbc_encrypt(unsigned int block_len_bits, unsigned char *ciphert
 	return bytes;
 }
 
-
 unsigned int aes_cbc_decrypt(unsigned int block_len_bits, unsigned char *plaintext, unsigned char *ciphertext, unsigned int ciphertext_len, unsigned char *key, unsigned char *iv)
 {
 	unsigned int i, j;
@@ -100,5 +96,71 @@ unsigned int aes_cbc_decrypt(unsigned int block_len_bits, unsigned char *plainte
 	}
 
 	return bytes;
+}
+
+void aes_random_key(unsigned char *key, unsigned int key_size)
+{
+	unsigned int i;
+	srand((unsigned int) time(NULL));
+
+	for(i=0; i<key_size; i++) {
+		key[i] = rand() % 256;
+	}
+
+	return;
+}
+
+unsigned int aes_encryption_oracle(unsigned char *ciphertext, unsigned int *ciphertext_len, unsigned char *plaintext, unsigned int plaintext_len)
+{
+	unsigned char key[16];
+	unsigned char iv[16];
+	unsigned int header, trailer;
+	unsigned int i;
+
+	// chose random key & IV
+	aes_random_key(key, 16);
+	aes_random_key(iv, 16);
+
+	srand((unsigned int) time(NULL));
+
+	header = 5 + (rand() % 6);
+	trailer = 5 + (rand() % 6);
+
+	unsigned char plaintext_mod[header+plaintext_len+trailer];
+
+	// set header
+	for(i=0; i<header; i++) {
+		plaintext_mod[i] = rand() % 256;
+	}
+
+	// set plaintext
+	for(i=0; i<header; i++) {
+		plaintext_mod[header+i] = plaintext[i];
+	}
+
+	// set trailer
+	for(i=0; i<trailer; i++) {
+		plaintext_mod[header+plaintext_len+i] = rand() % 256;
+	}
+
+	// perform PKCS#7 padding
+	unsigned int plaintext_mod_padded_len = header + plaintext_len + trailer + (16 - ((header+plaintext_len+trailer) % 16));
+	unsigned char plaintext_mod_padded[plaintext_mod_padded_len];
+
+	plaintext_mod_padded_len = pkcs7_padding(plaintext_mod_padded, plaintext_mod, header+plaintext_len+trailer, 16);
+
+	// roll the dice
+	unsigned int dice = rand() % 2;
+
+	// encrypt
+	switch(dice) {
+		case 0: (*ciphertext_len) = aes_ecb_encrypt(128, ciphertext, plaintext_mod_padded, plaintext_mod_padded_len, key);
+			break;
+		case 1: (*ciphertext_len) = aes_cbc_encrypt(128, ciphertext, plaintext_mod_padded, plaintext_mod_padded_len, key, iv);
+			break;
+	}
+
+	// return dice value to allow for verification later on
+	return dice;
 }
 

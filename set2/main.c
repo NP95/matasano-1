@@ -57,12 +57,28 @@ int main(void)
 // 	printf("plaintext = {\n%s\n}\n\n", plaintext);
 	cipher_len = aes_cbc_encrypt(128, cipher, plaintext, plaintext_len, "YELLOW SUBMARINE", iv);
 	plaintext_len = aes_cbc_decrypt(128, plaintext, cipher, cipher_len, "YELLOW SUBMARINE", iv);
-	printf("plaintext = {\n%s\n}\n\n", plaintext);
+// 	printf("plaintext = {\n%s\n}\n\n", plaintext);
 
 	free(cipher);
 
 	/** Set 2 Challenge 3 **/
-	/** **/
+	/** ECB/CBC DETECTION **/
+	unsigned char *input = "Terminator X: Bring the noise"; // len: 29
+	unsigned int output_len = 0;
+	unsigned char output[64];
+	unsigned int ecb = 2; // ecb == 0; cbc == 1
+
+	ecb = aes_encryption_oracle(output, &output_len, input, 29);
+	
+	double hamming_norm = 0.0;
+
+	hamming_norm = norm_hamming_distance(output, output_len, 16);
+	printf("[mode: %d, len: %d] hamming_norm = %f\n", ecb, output_len, hamming_norm);
+
+// 	unsigned char *output_hex;
+// 	hex_encode(&output_hex, output, output_len);
+// 	printf("[mode: %d]\n%s\n", ecb, output_hex);
+// 	free(output_hex);
 
 	return 0;
 }
