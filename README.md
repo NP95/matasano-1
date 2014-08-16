@@ -15,12 +15,17 @@ Code Structure:
 
 Progress:
 
-    Set 1 - Challenge 1 .. 7 [done]
-    Set 1 - Challenge 8      [working]
+    *** Set 1 ***
+     Challenge 1 .. 7 [done]
+     Challenge 8      [unknown]
+
+    *** Set 2 ***
+     Challenge 1-2 [done]
+     Challenge 3 [working]
 
 How to use:
 
     $ make
-    $ set1/main.out
+    $ cd setX; ./main.out
 
 Now watch the show and have fun!

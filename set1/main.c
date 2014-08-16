@@ -1,8 +1,7 @@
 #include <stdio.h>
-#include <openssl/aes.h>
-#include <openssl/evp.h>
-#include <openssl/rand.h>
+// #include <openssl/aes.h>
 
+#include "../include/aes.h"
 #include "../include/hex2base64.h"
 #include "../include/hex_coder.h"
 #include "../include/xor.h"
@@ -292,11 +291,11 @@ int main(void){
 	clear_text = malloc(s1c6_cipher_len);
 	memset(clear_text, 0, s1c6_cipher_len);
 
-	AES_KEY dec_key;
-	AES_set_decrypt_key(key, 128, &dec_key);
-	for(i=0; i<s1c6_cipher_len; i+=16) {
-		AES_ecb_encrypt(s1c6_cipher+i, clear_text+i, &dec_key, AES_DECRYPT);
-	}
+	bytes_to_encode = aes_ecb_decrypt(128, clear_text, s1c6_cipher, s1c6_cipher_len, key);
+	bytes_to_encode = aes_ecb_encrypt(128, s1c6_cipher, clear_text, bytes_to_encode, key);
+	memset(clear_text, 0, bytes_to_encode);
+	aes_ecb_decrypt(128, clear_text, s1c6_cipher, bytes_to_encode, key);
+// 	aes_ecb_decrypt(128, clear_text, s1c6_cipher, s1c6_cipher_len, key);
 
 	printf("clear_text = '%s'\n", clear_text);
 
