@@ -317,14 +317,14 @@ int main(void){
 	s1c6_cipher_len=0;
 	num_blocks = 0;
 	j=1;
-	res_dist = 0;
+	res_dist = 100;
 	while((read = getline(&line_str, &len, fp)) != -1) {
 		s1c6_cipher_len = hex_decode(&s1c6_cipher, line_str, read);
 // 		printf("ciph(%d) = '%s'\n", s1c6_cipher_len, s1c6_cipher);
 		hamming_norm = norm_hamming_distance(s1c6_cipher, s1c6_cipher_len, 16);
 		printf("[%d] hamming_norm = %f\n", j, hamming_norm);
 
-		if(hamming_norm > res_dist) {
+		if(hamming_norm < res_dist) {
 			res_dist = hamming_norm;
 			res_keysize = j;
 		}

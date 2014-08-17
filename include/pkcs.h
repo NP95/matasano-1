@@ -1,7 +1,6 @@
 #ifndef __PKCS_H
 #define __PKCS_H
 
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 

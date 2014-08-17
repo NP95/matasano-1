@@ -4,6 +4,7 @@
 
 #include "../include/hex2base64.h"
 #include "../include/hex_coder.h"
+#include "../include/hamming.h"
 
 int main(void)
 {
@@ -15,7 +16,7 @@ int main(void)
 
 	hex_encode(&plaintext_padded_hex, plaintext_padded, plaintext_padded_len);
 
-	printf("plaintext_padded = '%s'\n", plaintext_padded_hex);
+// 	printf("plaintext_padded = '%s'\n", plaintext_padded_hex);
 
 	free(plaintext_padded_hex);
 
@@ -63,22 +64,13 @@ int main(void)
 
 	/** Set 2 Challenge 3 **/
 	/** ECB/CBC DETECTION **/
-	unsigned char *input = "Terminator X: Bring the noise"; // len: 29
 	unsigned int output_len = 0;
-	unsigned char output[64];
+	unsigned char output[plaintext_len];
 	unsigned int ecb = 2; // ecb == 0; cbc == 1
 
-	ecb = aes_encryption_oracle(output, &output_len, input, 29);
+	ecb = aes_encryption_oracle(output, &output_len, plaintext, plaintext_len);
 	
-	double hamming_norm = 0.0;
-
-	hamming_norm = norm_hamming_distance(output, output_len, 16);
-	printf("[mode: %d, len: %d] hamming_norm = %f\n", ecb, output_len, hamming_norm);
-
-// 	unsigned char *output_hex;
-// 	hex_encode(&output_hex, output, output_len);
-// 	printf("[mode: %d]\n%s\n", ecb, output_hex);
-// 	free(output_hex);
+	printf("[mode: %d, len: %d] DETECTED MODE: %s\n", ecb, output_len, (is_ecb_mode(output, output_len, 16)==0) ? "ECB" : "CBC");
 
 	return 0;
 }

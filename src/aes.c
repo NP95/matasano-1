@@ -164,3 +164,17 @@ unsigned int aes_encryption_oracle(unsigned char *ciphertext, unsigned int *ciph
 	return dice;
 }
 
+unsigned int is_ecb_mode(unsigned char *ciphertext, unsigned int ciphertext_len, unsigned int block_len)
+{
+	double hn = 0.0;
+
+	hn = norm_hamming_distance(ciphertext, ciphertext_len, block_len);
+
+	if(hn < 2.5)
+		return 0;	// ECB mode encrypted cipher detected
+	else if(hn > 3)
+		return 1;	// CBC mode (or maybe other?) detected
+
+	return 2;	// unknown mode
+}
+

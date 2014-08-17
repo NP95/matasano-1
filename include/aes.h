@@ -5,6 +5,7 @@
 #include <string.h>
 #include <openssl/aes.h>
 
+#include "hamming.h"
 #include "pkcs.h"
 #include "xor.h"
 
@@ -15,5 +16,7 @@ unsigned int aes_cbc_decrypt(unsigned int block_len_bits, unsigned char *plainte
 
 void aes_random_key(unsigned char *key, unsigned int key_size);
 unsigned int aes_encryption_oracle(unsigned char *ciphertext, unsigned int *ciphertext_len, unsigned char *plaintext, unsigned int plaintext_len);
+
+unsigned int is_ecb_mode(unsigned char *ciphertext, unsigned int ciphertext_len, unsigned int block_len);
 
 #endif // __AES_H
