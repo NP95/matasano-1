@@ -1,11 +1,14 @@
 #ifndef __AES_H
 #define __AES_H
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <openssl/aes.h>
 
 #include "hamming.h"
+#include "hex_coder.h"
+#include "hex2base64.h"
 #include "pkcs.h"
 #include "xor.h"
 
@@ -15,7 +18,11 @@ unsigned int aes_cbc_encrypt(unsigned int block_len_bits, unsigned char *ciphert
 unsigned int aes_cbc_decrypt(unsigned int block_len_bits, unsigned char *plaintext, unsigned char *ciphertext, unsigned int ciphertext_len, unsigned char *key, unsigned char *iv);
 
 void aes_random_key(unsigned char *key, unsigned int key_size);
+
+unsigned int aes_encryption_random(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_key);
 unsigned int aes_encryption_oracle(unsigned char *ciphertext, unsigned int *ciphertext_len, unsigned char *plaintext, unsigned int plaintext_len);
+
+unsigned int aes_ecb_partial_crack(unsigned char *unknown_plaintext, unsigned int *unknown_plaintext_length, unsigned char *key, unsigned int *key_length);
 
 unsigned int is_ecb_mode(unsigned char *ciphertext, unsigned int ciphertext_len, unsigned int block_len);
 

@@ -16,7 +16,7 @@ int main(void)
 
 	hex_encode(&plaintext_padded_hex, plaintext_padded, plaintext_padded_len);
 
-// 	printf("plaintext_padded = '%s'\n", plaintext_padded_hex);
+	printf("[s2c1] plaintext_padded = '%s'\n", plaintext_padded_hex);
 
 	free(plaintext_padded_hex);
 
@@ -70,7 +70,16 @@ int main(void)
 
 	ecb = aes_encryption_oracle(output, &output_len, plaintext, plaintext_len);
 	
-	printf("[mode: %d, len: %d] DETECTED MODE: %s\n", ecb, output_len, (is_ecb_mode(output, output_len, 16)==0) ? "ECB" : "CBC");
+	printf("[s2c3] [mode: %d, len: %d] DETECTED MODE: %s\n", ecb, output_len, (is_ecb_mode(output, output_len, 16)==0) ? "ECB" : "CBC");
+
+	/** Set 2 Challenge 4 **/
+	/** ECB SINGLE-BYTE DECRYPTION **/
+	unsigned char s2c4_plaintext[1024];
+	unsigned int s2c4_plaintext_len;
+	unsigned int key_len = 0;
+	aes_ecb_partial_crack(s2c4_plaintext, &s2c4_plaintext_len, NULL, &key_len);
+
+	printf("[s2c4] plaintext = {\n%s\n}\n", s2c4_plaintext);
 
 	return 0;
 }

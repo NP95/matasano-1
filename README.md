@@ -19,8 +19,8 @@ Progress:
      Challenge 1 .. 8 [done]
 
     *** Set 2 ***
-     Challenge 1-3 [done]
-     Challenge 4   [working]
+     Challenge 1-4 [done]
+     Challenge 5   [working]
 
 How to use:
 
