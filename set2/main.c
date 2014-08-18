@@ -94,6 +94,7 @@ int main(void)
 
 	char getstr[] = "foo=bar&bac=qux&zap=zazzle";
 	char encoded_getstr[1024];
+	unsigned int encoded_getstr_len;
 // 	memset(encoded_getstr, 0, 1024*sizeof(char));
 
 // 	kv_num = decode_from_get(kv, getstr);
@@ -108,8 +109,11 @@ int main(void)
 
 // 	printf("encoded: '%s'\n", encoded_getstr);
 
+	unsigned char key[16];
+	aes_random_key(key, 16);
+
 	memset(encoded_getstr, 0, 1024*sizeof(char));
-	profile_for(encoded_getstr, kv, "rc0r@husmail.com&role=admin");
+	encoded_getstr_len = profile_for(encoded_getstr, kv, "rc0r@husmail.com&role=admin", key);
 
 	printf("send: {\n");
 	kv_num = 3;
@@ -117,30 +121,62 @@ int main(void)
 		printf(" %s: '%s'%s\n", kv[i].key, kv[i].value, (i==(kv_num-1))?"":",");
 	}
 	printf("}\n");
-	printf("encoded: '%s'\n", encoded_getstr);
+// 	printf("encoded: '%s'\n", encoded_getstr);
 
-	// encrypt encoded profile
-	// perform PKCS#7 padding
-	unsigned int plaintext_pad_len = strlen(encoded_getstr) + (16 - (strlen(encoded_getstr) % 16));
-	unsigned char plaintext_pad[plaintext_pad_len];
-
-	plaintext_pad_len = pkcs7_padding(plaintext_pad, encoded_getstr, strlen(encoded_getstr), 16);
-
-	// encrypt
-	unsigned char s2c5_cipher[128];
+// 	// encrypt encoded profile
+// 	// perform PKCS#7 padding
+// 	unsigned int plaintext_pad_len = strlen(encoded_getstr) + (16 - (strlen(encoded_getstr) % 16));
+// 	unsigned char plaintext_pad[plaintext_pad_len];
+// 
+// 	plaintext_pad_len = pkcs7_padding(plaintext_pad, encoded_getstr, strlen(encoded_getstr), 16);
+// 
+// 	// encrypt
+// 	unsigned char s2c5_cipher[128];
 	unsigned int s2c5_plain_len;
 	unsigned char s2c5_plain[128];
-	unsigned int s2c5_cipher_len;
-	unsigned char key[16];
-	aes_random_key(key, 16);
-
-	s2c5_cipher_len = aes_ecb_encrypt(128, s2c5_cipher, plaintext_pad, plaintext_pad_len, key);
+// 	unsigned int s2c5_cipher_len;
+// 	unsigned char key[16];
+// 	aes_random_key(key, 16);
+// 
+// 	s2c5_cipher_len = aes_ecb_encrypt(128, s2c5_cipher, plaintext_pad, plaintext_pad_len, key);
 
 	// transmit to attacker MITMing profile setup process ...
+	// attacker constructing ciphertexts
+	kv_t kv_a1[10], kv_a2[10];
+	for(i=0; i<10; i++) {
+		kv_a1[i].key = malloc(128);
+		kv_a1[i].value = malloc(128);
+		kv_a2[i].key = malloc(128);
+		kv_a2[i].value = malloc(128);
+	}
+	unsigned char attack_str1[512];
+	unsigned int attack_str1_len;
+	unsigned char attack_str2[512];
+	unsigned int attack_str2_len;
+	unsigned char attack_str[512];
+
+	// create ciphertext with first two blocks containing:
+	// 'email=root@ubox.com&uid=10&role='
+	memset(attack_str1, 0, 512);
+	attack_str1_len = profile_for(attack_str1, kv_a1, "root@ubox.com", key);
+
+	// create another ciphertext with 2nd block containing
+	// 'admin&uid=10&rol'
+	memset(attack_str2, 0, 512);
+	attack_str2_len = profile_for(attack_str2, kv_a2, "rt@box.comadmin", key);
 	
+	// assemble our attack string
+	memset(attack_str, 0, 512);
+	memcpy(attack_str, attack_str1, 32*sizeof(unsigned char));
+	memcpy(attack_str+32, attack_str2+16, 16*sizeof(unsigned char));
+
 	// receive request
-	// decrypt
-	s2c5_plain_len = aes_ecb_decrypt(128, s2c5_plain, s2c5_cipher, s2c5_cipher_len, key);
+	// decrypt original
+// 	s2c5_plain_len = aes_ecb_decrypt(128, s2c5_plain, encoded_getstr, encoded_getstr_len, key);
+
+	// decrypt attack_str
+	s2c5_plain_len = aes_ecb_decrypt(128, s2c5_plain, attack_str, 48, key);
+	printf("recv string: '%s'\n", s2c5_plain);
 
 	// decode
 	kv_num = decode_from_get(kv, s2c5_plain);
@@ -155,6 +191,10 @@ int main(void)
 	for(i=0; i<10; i++) {
 		free(kv[i].key);
 		free(kv[i].value);
+		free(kv_a1[i].key);
+		free(kv_a1[i].value);
+		free(kv_a2[i].key);
+		free(kv_a2[i].value);
 	}
 	return 0;
 }
