@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../include/get.h"
 #include "../include/hex2base64.h"
 #include "../include/hex_coder.h"
 #include "../include/hamming.h"
@@ -81,5 +82,79 @@ int main(void)
 
 	printf("[s2c4] plaintext = {\n%s\n}\n", s2c4_plaintext);
 
+	/** Set 2 Challenge 5 **/
+	/**  ECB cut-n-paste  **/
+	kv_t kv[10];
+
+	for(i=0; i<10; i++) {
+		kv[i].key = malloc(128);
+		kv[i].value = malloc(128);
+	}
+	unsigned int kv_num = 0;
+
+	char getstr[] = "foo=bar&bac=qux&zap=zazzle";
+	char encoded_getstr[1024];
+// 	memset(encoded_getstr, 0, 1024*sizeof(char));
+
+// 	kv_num = decode_from_get(kv, getstr);
+
+// 	printf("{\n");
+// 	for(i=0; i<kv_num; i++) {
+// 		printf(" %s: '%s'%s\n", kv[i].key, kv[i].value, (i==(kv_num-1))?"":",");
+// 	}
+// 	printf("}\n");
+
+// 	encode_to_get(encoded_getstr, kv, kv_num);
+
+// 	printf("encoded: '%s'\n", encoded_getstr);
+
+	memset(encoded_getstr, 0, 1024*sizeof(char));
+	profile_for(encoded_getstr, kv, "rc0r@husmail.com&role=admin");
+
+	printf("send: {\n");
+	kv_num = 3;
+	for(i=0; i<kv_num; i++) {
+		printf(" %s: '%s'%s\n", kv[i].key, kv[i].value, (i==(kv_num-1))?"":",");
+	}
+	printf("}\n");
+	printf("encoded: '%s'\n", encoded_getstr);
+
+	// encrypt encoded profile
+	// perform PKCS#7 padding
+	unsigned int plaintext_pad_len = strlen(encoded_getstr) + (16 - (strlen(encoded_getstr) % 16));
+	unsigned char plaintext_pad[plaintext_pad_len];
+
+	plaintext_pad_len = pkcs7_padding(plaintext_pad, encoded_getstr, strlen(encoded_getstr), 16);
+
+	// encrypt
+	unsigned char s2c5_cipher[128];
+	unsigned int s2c5_plain_len;
+	unsigned char s2c5_plain[128];
+	unsigned int s2c5_cipher_len;
+	unsigned char key[16];
+	aes_random_key(key, 16);
+
+	s2c5_cipher_len = aes_ecb_encrypt(128, s2c5_cipher, plaintext_pad, plaintext_pad_len, key);
+
+	// transmit to attacker MITMing profile setup process ...
+	
+	// receive request
+	// decrypt
+	s2c5_plain_len = aes_ecb_decrypt(128, s2c5_plain, s2c5_cipher, s2c5_cipher_len, key);
+
+	// decode
+	kv_num = decode_from_get(kv, s2c5_plain);
+
+	printf("recv: {\n");
+	kv_num = 3;
+	for(i=0; i<kv_num; i++) {
+		printf(" %s: '%s'%s\n", kv[i].key, kv[i].value, (i==(kv_num-1))?"":",");
+	}
+	printf("}\n");
+
+	for(i=0; i<10; i++) {
+		free(kv[i].key);
+		free(kv[i].value);
+	}
 	return 0;
 }
