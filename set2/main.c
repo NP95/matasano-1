@@ -203,6 +203,7 @@ int main(void)
 	unsigned char s2c6_plaintext[1024];
 	unsigned int s2c6_plaintext_len;
 	unsigned int s2c6_key_len = 0;
+	memset(s2c6_plaintext, 0, 1024);
 	aes_ecb_partial_crack2(s2c6_plaintext, &s2c6_plaintext_len, &s2c6_key_len);
 
 	printf("[s2c6] plaintext = {\n%s\n}\n", s2c6_plaintext);

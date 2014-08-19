@@ -132,6 +132,7 @@ unsigned int aes_ecb_partial_crack(unsigned char *plaintext, unsigned int *plain
 		// key length found: stop
 		if(hn == 0.0) {
 			(*key_length) = ((unsigned int) ceil((double)i/2));
+			ciphertext_length -= 2*(*key_length);
 			printf("[s2c4] Is ECB Cipher? %s!\nECB Cipher Blocksize: %d\n", (k==0) ? "yes" : "no", (*key_length));
 			break;
 		}
@@ -198,60 +199,57 @@ unsigned int aes_ecb_detect_garbage_header(unsigned char *no_garbage_cipher, uns
 unsigned int aes_ecb_partial_crack2(unsigned char *plaintext, unsigned int *plaintext_length, unsigned int *key_length)
 {
 	unsigned char random_key[16];
+
+	unsigned int random_header_len = rand() % 64;
+	unsigned char random_header[random_header_len];
 	unsigned char ciphertext[1024];
 	unsigned char no_garb_ciphertext[1024];
 	unsigned char *ciphertext_hex;
+	unsigned int garbage_ciphertext_length;
 	unsigned int ciphertext_length;
 	unsigned int nog_ciphertext_length;
 	unsigned char known_plaintext[1024];
 	unsigned int i, j, k;
+	unsigned int prepad_size = 0;
+	unsigned int garbage_len = 0;
 	double hn;
 
 	// initialize key length
 	(*key_length) = 0;
 
 	// initialize random encryption key
+	// and random header
 	aes_random_key(random_key, 16);
 	(*key_length) = 16;
-
-	// determine block size and check for ECB mode
-// 	k = 1000;
-// 	for(i=2; i<80; i++) {
-// 		known_plaintext = malloc(i*sizeof(unsigned char));
-// 		memset(known_plaintext, 'A', i*sizeof(unsigned char));
-// 		ciphertext_length = aes_encryption_random2(ciphertext, known_plaintext, i, random_key);
-// 		hn = norm_hamming_distance(ciphertext, i, (unsigned int) ceil((double)i/2));
-// 		k = is_ecb_mode(ciphertext, i, (unsigned int) ceil((double)i/2));
-// 
-// 		hex_encode(&ciphertext_hex, ciphertext, ciphertext_length);
-// // 		printf("[%d] cipher = '%s'\n", i, ciphertext_hex);
-// 		free(ciphertext_hex);
-// 
-// 		free(known_plaintext);
-// 
-// 		// key length found: stop
-// 		if(hn == 0.0) {
-// 			(*key_length) = ((unsigned int) ceil((double)i/2));
-// 			printf("[s2c6] Is ECB Cipher? %s!\nECB Cipher Blocksize: %d\n", (k==0) ? "yes" : "no", (*key_length));
-// 			break;
-// 		}
-// 	}
+	aes_random_key(random_header, random_header_len);
 
 	// perform garbage detection
 	// detect random blocks, remove them, determine attacker
 	// controlled + target cipher size
 	memset(known_plaintext, 'A', 1024*sizeof(unsigned char));
-	ciphertext_length = aes_encryption_random2(ciphertext, known_plaintext, 3*16, random_key);
-	// 	hex_encode(&ciphertext_hex, ciphertext, ciphertext_length);
-	// 	printf("[s2c6] cipher = '%s'\n", ciphertext_hex);
-	// 	free(ciphertext_hex);
-	ciphertext_length = aes_ecb_detect_garbage_header(no_garb_ciphertext, ciphertext, ciphertext_length, 16);
-	// 	hex_encode(&ciphertext_hex, no_garb_ciphertext, ciphertext_length);
-	// 	printf("[s2c6] no_garb_cipher = '%s'\n",ciphertext_hex);
-	// 	free(ciphertext_hex);
+	for(i=0; i<16; i++) {
+		garbage_ciphertext_length = aes_encryption_random2(ciphertext, known_plaintext, i+2*16, random_header, random_header_len, random_key);
+// 		hex_encode(&ciphertext_hex, ciphertext, ciphertext_length);
+// 		printf("[s2c6] cipher = '%s'\n", ciphertext_hex);
+// 		free(ciphertext_hex);
+		ciphertext_length = aes_ecb_detect_garbage_header(no_garb_ciphertext, ciphertext, garbage_ciphertext_length, 16);
+// 		hex_encode(&ciphertext_hex, no_garb_ciphertext, ciphertext_length);
+// 		printf("[s2c6] no_garb_cipher = '%s'\n",ciphertext_hex);
+// 		free(ciphertext_hex);
+		if(garbage_ciphertext_length>ciphertext_length) {
+			prepad_size = i;
+			garbage_len = garbage_ciphertext_length-ciphertext_length-prepad_size-32;
+			break;
+		}
+	}
+	printf("[s2c6] cipher_len = %d, prepad_size = %d, random_header_len = %d\n", ciphertext_length, prepad_size, garbage_len);
 
 	// now on to the crckng!
-	unsigned char plaintext_one_off[3*16+ciphertext_length];
+	unsigned char plaintext_one_off[ciphertext_length];
+
+	unsigned int sendbuf_len = prepad_size+ciphertext_length;
+	unsigned char sendbuf[sendbuf_len];
+
 
 	unsigned char cipher_one_off_save[1024];
 	unsigned int cipher_one_off_save_length;
@@ -267,40 +265,27 @@ unsigned int aes_ecb_partial_crack2(unsigned char *plaintext, unsigned int *plai
 
 	(*plaintext_length) = 0;
 
+	memset(sendbuf, 'B', sendbuf_len*sizeof(unsigned char));
 	for(i=0; i<ciphertext_length; i++) {
-		memset(plaintext_one_off, 'A', (3*16+ciphertext_length-i-1)*sizeof(unsigned char));
-		for(j=3*16+ciphertext_length-i-1, k=0; j<3*16+ciphertext_length-1; j++, k++) {
+		memset(plaintext_one_off, 'A', (ciphertext_length-i-1)*sizeof(unsigned char));
+		for(j=ciphertext_length-i-1, k=0; j<ciphertext_length-1; j++, k++) {
 			plaintext_one_off[j] = plaintext[k];
 		}
 
-// 		printf("[s2c6] plaintext_one_off = '%s'\n", plaintext_one_off);
-		cipher_one_off_save_length = aes_encryption_random2(cipher_one_off_save, plaintext_one_off, 3*16+ciphertext_length-i-1, random_key);
-// 		hex_encode(&ciphertext_hex, cipher_one_off_save, cipher_one_off_save_length);
-// 		printf("[s2c6] (%d) cipher = '%s'\n", cipher_one_off_save_length, ciphertext_hex);
-// 		free(ciphertext_hex);
-		// strip garbage
-		nog_cipher_one_off_save_length = aes_ecb_detect_garbage_header(nog_cipher_one_off_save, cipher_one_off_save, cipher_one_off_save_length, 16);
-// 		hex_encode(&ciphertext_hex, nog_cipher_one_off_save, nog_cipher_one_off_save_length);
-// 		printf("[s2c6] (%d) no_garb_cipher = '%s'\n", nog_cipher_one_off_save_length, ciphertext_hex);
-// 		free(ciphertext_hex);
+		memcpy(sendbuf+prepad_size, plaintext_one_off, (ciphertext_length-1)*sizeof(unsigned char));
+		cipher_one_off_save_length = aes_encryption_random2(cipher_one_off_save, sendbuf, sendbuf_len-i-1, random_header, random_header_len, random_key);
 
 		for(j=0; j<256; j++) {
-			plaintext_one_off[3*16+ciphertext_length-1] = j;
+			memset(sendbuf, 'B', sendbuf_len*sizeof(unsigned char));
+			plaintext_one_off[ciphertext_length-1] = j;
 
-			cipher_one_off_length = aes_encryption_random2(cipher_one_off, plaintext_one_off, 3*16+ciphertext_length, random_key);
-// 			hex_encode(&ciphertext_hex, cipher_one_off, cipher_one_off_length);
-// 			printf("[s2c6] (%d,%d) cipher = '%s'\n", ciphertext_length, cipher_one_off_length, ciphertext_hex);
-// 			free(ciphertext_hex);
-			// strip garbage
-			nog_cipher_one_off_length = aes_ecb_detect_garbage_header(nog_cipher_one_off, cipher_one_off, cipher_one_off_length, 16);
-// 			hex_encode(&ciphertext_hex, nog_cipher_one_off, nog_cipher_one_off_length);
-// 			printf("[s2c6] (%d,%d) no_garb_cipher = '%s'\n", ciphertext_length, nog_cipher_one_off_length, ciphertext_hex);
-// 			free(ciphertext_hex);
+			memcpy(sendbuf+prepad_size, plaintext_one_off, ciphertext_length*sizeof(unsigned char));
+			cipher_one_off_length = aes_encryption_random2(cipher_one_off, sendbuf, sendbuf_len, random_header, random_header_len, random_key);
+// 			printf("[%d] saved_len = %d, cur_len = %d\n", j, nog_cipher_one_off_save_length, nog_cipher_one_off_length);
 
 			// compare to saved one-off cipher
-			if(memcmp(nog_cipher_one_off, nog_cipher_one_off_save, ciphertext_length)==0) {
-				printf("hit\n");
-				plaintext[i] = plaintext_one_off[3*16+ciphertext_length-1];
+			if(memcmp(cipher_one_off+prepad_size+garbage_len, cipher_one_off_save+prepad_size+garbage_len, ciphertext_length)==0) {
+				plaintext[i] = plaintext_one_off[ciphertext_length-1];
 				(*plaintext_length)++;
 				break;
 			}
@@ -376,7 +361,7 @@ unsigned int aes_encryption_oracle(unsigned char *ciphertext, unsigned int *ciph
 	return dice;
 }
 
-unsigned int aes_encryption_random2(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_key)
+unsigned int aes_encryption_random2(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_header, unsigned int random_header_len, unsigned char *random_key)
 {
 	unsigned char *unknown_str_b64 = "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK";
 	unsigned char *unknown_str;
@@ -385,30 +370,30 @@ unsigned int aes_encryption_random2(unsigned char *ciphertext, unsigned char *pl
 	unknown_str[unknown_str_len] = '\0';
 
 // 	srand((unsigned int)time(NULL));
-	unsigned int header_len = rand() % 64;
-	unsigned char header[header_len];
+// 	unsigned int header_len = rand() % 64;
+// 	unsigned char header[header_len];
 	unsigned int i;
 
-	// initialize header
-	for(i=0; i<header_len; i++) {
-		header[i] = 32 + rand() % 224;
-	}
+// 	// initialize header
+// 	for(i=0; i<header_len; i++) {
+// 		header[i] = 32 + rand() % 224;
+// 	}
 
-	unsigned int plaintext_mod_len = header_len + plaintext_len + unknown_str_len;
+	unsigned int plaintext_mod_len = random_header_len + plaintext_len + unknown_str_len;
 	unsigned char plaintext_mod[plaintext_mod_len];
 
 	// assemble plaintext string
 	// header
-	for(i=0; i<header_len; i++) {
-		plaintext_mod[i] = header[i];
+	for(i=0; i<random_header_len; i++) {
+		plaintext_mod[i] = random_header[i];
 	}
 	// plaintext
 	for(i=0; i<plaintext_len; i++) {
-		plaintext_mod[header_len+i] = plaintext[i];
+		plaintext_mod[random_header_len+i] = plaintext[i];
 	}
 	// append unknown string
 	for(i=0; i<unknown_str_len; i++) {
-		plaintext_mod[header_len+plaintext_len+i] = unknown_str[i];
+		plaintext_mod[random_header_len+plaintext_len+i] = unknown_str[i];
 	}
 
 	// PKCS#7 padding
