@@ -143,13 +143,10 @@ unsigned int aes_ecb_partial_crack(unsigned char *plaintext, unsigned int *plain
 	unsigned int cipher_one_off_save_length;
 	unsigned char cipher_one_off[1024];
 	unsigned int cipher_one_off_length;
-	unsigned int bytes_diff;
 
 	(*plaintext_length) = 0;
 
-// 	for(i=0; i<num_blocks*(*key_length); i++) {
 	for(i=0; i<ciphertext_length; i++) {
-// 	for(i=0; i<1; i++) {
 		memset(plaintext_one_off, 0, (ciphertext_length-i-1)*sizeof(unsigned char));
 		for(j=ciphertext_length-i-1, k=0; j<ciphertext_length-1; j++, k++) {
 			plaintext_one_off[j] = plaintext[k];
@@ -163,13 +160,7 @@ unsigned int aes_ecb_partial_crack(unsigned char *plaintext, unsigned int *plain
 			cipher_one_off_length = aes_encryption_random(cipher_one_off, plaintext_one_off, ciphertext_length, random_key);
 
 			// compare to saved one-off cipher
-			bytes_diff=0;
-			for(k=0; k<ciphertext_length; k++) {
-				if(cipher_one_off[k] != cipher_one_off_save[k])
-					bytes_diff++;
-			}
-
-			if(bytes_diff==0) {
+			if(memcmp(cipher_one_off, cipher_one_off_save, ciphertext_length)==0) {
 				plaintext[i] = plaintext_one_off[ciphertext_length-1];
 				(*plaintext_length)++;
 				break;
@@ -180,13 +171,39 @@ unsigned int aes_ecb_partial_crack(unsigned char *plaintext, unsigned int *plain
 	return (*plaintext_length);
 }
 
+unsigned int aes_ecb_detect_garbage_header(unsigned char *no_garbage_cipher, unsigned char *garbage_cipher, unsigned int garbage_cipher_len, unsigned int block_len)
+{
+	unsigned int num_blocks = garbage_cipher_len / block_len;
+	unsigned char garb_blocks[num_blocks][block_len];
+	unsigned int i, j, found_at=0;
+
+	// initialize blocks
+	for(i=0; i<num_blocks; i++) {
+		for(j=0; j<block_len; j++) {
+			garb_blocks[i][j] = garbage_cipher[i*block_len+j];
+		}
+		// check for two identical blocks
+		if(i>0) {
+			if(memcmp(garb_blocks[i-1], garb_blocks[i], block_len)==0) {
+				found_at = (i+1)*block_len;
+			}
+		}
+	}
+
+	memcpy(no_garbage_cipher, garbage_cipher+found_at, (garbage_cipher_len-found_at)*sizeof(unsigned char));
+
+	return (garbage_cipher_len-found_at);
+}
+
 unsigned int aes_ecb_partial_crack2(unsigned char *plaintext, unsigned int *plaintext_length, unsigned int *key_length)
 {
 	unsigned char random_key[16];
 	unsigned char ciphertext[1024];
+	unsigned char no_garb_ciphertext[1024];
 	unsigned char *ciphertext_hex;
 	unsigned int ciphertext_length;
-	unsigned char *known_plaintext;
+	unsigned int nog_ciphertext_length;
+	unsigned char known_plaintext[1024];
 	unsigned int i, j, k;
 	double hn;
 
@@ -197,8 +214,6 @@ unsigned int aes_ecb_partial_crack2(unsigned char *plaintext, unsigned int *plai
 	aes_random_key(random_key, 16);
 	(*key_length) = 16;
 
-	// skip block size detection here
-	ciphertext_length = aes_encryption_random(ciphertext, known_plaintext, 16, random_key)+64;
 	// determine block size and check for ECB mode
 // 	k = 1000;
 // 	for(i=2; i<80; i++) {
@@ -222,40 +237,70 @@ unsigned int aes_ecb_partial_crack2(unsigned char *plaintext, unsigned int *plai
 // 		}
 // 	}
 
+	// perform garbage detection
+	// detect random blocks, remove them, determine attacker
+	// controlled + target cipher size
+	memset(known_plaintext, 'A', 1024*sizeof(unsigned char));
+	ciphertext_length = aes_encryption_random2(ciphertext, known_plaintext, 3*16, random_key);
+	// 	hex_encode(&ciphertext_hex, ciphertext, ciphertext_length);
+	// 	printf("[s2c6] cipher = '%s'\n", ciphertext_hex);
+	// 	free(ciphertext_hex);
+	ciphertext_length = aes_ecb_detect_garbage_header(no_garb_ciphertext, ciphertext, ciphertext_length, 16);
+	// 	hex_encode(&ciphertext_hex, no_garb_ciphertext, ciphertext_length);
+	// 	printf("[s2c6] no_garb_cipher = '%s'\n",ciphertext_hex);
+	// 	free(ciphertext_hex);
+
 	// now on to the crckng!
-	unsigned char plaintext_one_off[ciphertext_length];
+	unsigned char plaintext_one_off[3*16+ciphertext_length];
+
 	unsigned char cipher_one_off_save[1024];
 	unsigned int cipher_one_off_save_length;
+
+	unsigned char nog_cipher_one_off_save[1024];
+	unsigned int nog_cipher_one_off_save_length;
+
 	unsigned char cipher_one_off[1024];
 	unsigned int cipher_one_off_length;
-	unsigned int bytes_diff;
+
+	unsigned char nog_cipher_one_off[1024];
+	unsigned int nog_cipher_one_off_length;
 
 	(*plaintext_length) = 0;
 
-// 	for(i=0; i<num_blocks*(*key_length); i++) {
 	for(i=0; i<ciphertext_length; i++) {
-// 	for(i=0; i<1; i++) {
-		memset(plaintext_one_off, 0, (ciphertext_length-i-1)*sizeof(unsigned char));
-		for(j=ciphertext_length-i-1, k=0; j<ciphertext_length-1; j++, k++) {
+		memset(plaintext_one_off, 'A', (3*16+ciphertext_length-i-1)*sizeof(unsigned char));
+		for(j=3*16+ciphertext_length-i-1, k=0; j<3*16+ciphertext_length-1; j++, k++) {
 			plaintext_one_off[j] = plaintext[k];
 		}
 
-		cipher_one_off_save_length = aes_encryption_random2(cipher_one_off_save, plaintext_one_off, ciphertext_length-i-1, random_key);
+// 		printf("[s2c6] plaintext_one_off = '%s'\n", plaintext_one_off);
+		cipher_one_off_save_length = aes_encryption_random2(cipher_one_off_save, plaintext_one_off, 3*16+ciphertext_length-i-1, random_key);
+// 		hex_encode(&ciphertext_hex, cipher_one_off_save, cipher_one_off_save_length);
+// 		printf("[s2c6] (%d) cipher = '%s'\n", cipher_one_off_save_length, ciphertext_hex);
+// 		free(ciphertext_hex);
+		// strip garbage
+		nog_cipher_one_off_save_length = aes_ecb_detect_garbage_header(nog_cipher_one_off_save, cipher_one_off_save, cipher_one_off_save_length, 16);
+// 		hex_encode(&ciphertext_hex, nog_cipher_one_off_save, nog_cipher_one_off_save_length);
+// 		printf("[s2c6] (%d) no_garb_cipher = '%s'\n", nog_cipher_one_off_save_length, ciphertext_hex);
+// 		free(ciphertext_hex);
 
 		for(j=0; j<256; j++) {
-			plaintext_one_off[ciphertext_length-1] = j;
+			plaintext_one_off[3*16+ciphertext_length-1] = j;
 
-			cipher_one_off_length = aes_encryption_random2(cipher_one_off, plaintext_one_off, ciphertext_length, random_key);
+			cipher_one_off_length = aes_encryption_random2(cipher_one_off, plaintext_one_off, 3*16+ciphertext_length, random_key);
+// 			hex_encode(&ciphertext_hex, cipher_one_off, cipher_one_off_length);
+// 			printf("[s2c6] (%d,%d) cipher = '%s'\n", ciphertext_length, cipher_one_off_length, ciphertext_hex);
+// 			free(ciphertext_hex);
+			// strip garbage
+			nog_cipher_one_off_length = aes_ecb_detect_garbage_header(nog_cipher_one_off, cipher_one_off, cipher_one_off_length, 16);
+// 			hex_encode(&ciphertext_hex, nog_cipher_one_off, nog_cipher_one_off_length);
+// 			printf("[s2c6] (%d,%d) no_garb_cipher = '%s'\n", ciphertext_length, nog_cipher_one_off_length, ciphertext_hex);
+// 			free(ciphertext_hex);
 
 			// compare to saved one-off cipher
-			bytes_diff=0;
-			for(k=0; k<ciphertext_length; k++) {
-				if(cipher_one_off[k] != cipher_one_off_save[k])
-					bytes_diff++;
-			}
-
-			if(bytes_diff==0) {
-				plaintext[i] = plaintext_one_off[ciphertext_length-1];
+			if(memcmp(nog_cipher_one_off, nog_cipher_one_off_save, ciphertext_length)==0) {
+				printf("hit\n");
+				plaintext[i] = plaintext_one_off[3*16+ciphertext_length-1];
 				(*plaintext_length)++;
 				break;
 			}
