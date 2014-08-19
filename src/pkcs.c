@@ -15,3 +15,28 @@ unsigned int pkcs7_padding(unsigned char *plaintext_padded, unsigned char *plain
 
 	return (plaintext_unpadded_len+pad_num);
 }
+
+int pkcs7_unpadding(unsigned char *plaintext, unsigned char *plaintext_padded, unsigned int plaintext_padded_len, unsigned int block_len)
+{
+	unsigned int pad_len;
+	unsigned int i;
+
+	pad_len = plaintext_padded[plaintext_padded_len-1];
+
+	// validate padding
+	if(plaintext_padded_len % block_len != 0)
+		return -1;
+
+	if(pad_len==0)
+		return -2;
+
+	for(i=1; i<=pad_len; i++) {
+		if(plaintext_padded[plaintext_padded_len-i] != pad_len)
+			return -3;
+	}
+
+	// remove padding
+	memcpy(plaintext, plaintext_padded, plaintext_padded_len-pad_len);
+	return plaintext_padded_len-pad_len;
+}
+

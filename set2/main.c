@@ -208,6 +208,50 @@ int main(void)
 
 	printf("[s2c6] plaintext = {\n%s\n}\n", s2c6_plaintext);
 
+	/** Set 2 CHallenge 7 **/
+	/** PKCS#7  UNPADDING **/
+	unsigned char s2c7_plain[256];
+	int s2c7_plain_len;
+
+	s2c7_plain_len = pkcs7_unpadding(s2c7_plain, "ICE ICE BABY, ICE ICE BABY\x06\x06\x06\x06\x06\x06", 32, 16);
+	printf("[s2c7] plain = '%s', len = %d\n", s2c7_plain, s2c7_plain_len);
+
+	memset(s2c7_plain, 0, 256*sizeof(unsigned char));
+	s2c7_plain_len = pkcs7_unpadding(s2c7_plain, "ICE ICE BABY\x05\x05\x05\x05", 16, 16);
+	printf("[s2c7] plain = '%s', len = %d\n", s2c7_plain, s2c7_plain_len);
+
+	memset(s2c7_plain, 0, 256*sizeof(unsigned char));
+	s2c7_plain_len = pkcs7_unpadding(s2c7_plain, "ICE ICE BABY\x01\x02\x03\x04", 16, 16);
+	printf("[s2c7] plain = '%s', len = %d\n", s2c7_plain, s2c7_plain_len);
+
+	memset(s2c7_plain, 0, 256*sizeof(unsigned char));
+	s2c7_plain_len = pkcs7_unpadding(s2c7_plain, "ICE ICE BABY\x03\x03\x03", 16, 16);
+	printf("[s2c7] plain = '%s', len = %d\n", s2c7_plain, s2c7_plain_len);
+
+	/** Set 2 CHallenge 8 **/
+	/** CBC BITFLIP ATTAX **/
+	unsigned char *s2c8_plain = "12345:admin<true"; // 16
+	unsigned char s2c8_key[16];
+	unsigned char s2c8_iv[16];
+	unsigned char s2c8_cipher_orig[128];
+	unsigned int s2c8_cipher_orig_len;
+	unsigned char s2c8_cipher_mod[128];
+	unsigned int s2c8_cipher_mod_len;
+	
+	s2c8_cipher_orig_len = aes_cbc_oracle(s2c8_cipher_orig, s2c8_plain, 16, s2c8_key, s2c8_iv);
+	
+	memcpy(s2c8_cipher_mod, s2c8_cipher_orig, s2c8_cipher_orig_len);
+	// flip bits in ciphertext block 2
+	// prepending our controlled buffer
+	s2c8_cipher_mod[37-16] ^= 0x01;
+	s2c8_cipher_mod[43-16] ^= 0x01;
+
+	// decrypt
+	unsigned char s2c8_dec[128];
+	unsigned int s2c8_dec_len;
+
+	s2c8_dec_len = aes_cbc_decrypt(128, s2c8_dec, s2c8_cipher_mod, s2c8_cipher_orig_len, s2c8_key, s2c8_iv);
+	printf("[s2c8] plain='%s'\n", s2c8_dec);
 
 	return 0;
 }
