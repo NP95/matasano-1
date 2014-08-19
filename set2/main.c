@@ -9,6 +9,7 @@
 
 int main(void)
 {
+	srand((unsigned int) time(NULL));
 	/** Set 2 Challenge 1 **/
 	/**  PKCS#7 PADDING   **/
 	unsigned char plaintext_padded[20];
@@ -56,10 +57,10 @@ int main(void)
 	memset(iv, 0, 16);
 
 	plaintext_len = aes_cbc_decrypt(128, plaintext, cipher, cipher_len, "YELLOW SUBMARINE", iv);
-// 	printf("plaintext = {\n%s\n}\n\n", plaintext);
+// 	printf("[s2c2] d(ciphertext) = {\n%s\n}\n\n", plaintext);
 	cipher_len = aes_cbc_encrypt(128, cipher, plaintext, plaintext_len, "YELLOW SUBMARINE", iv);
 	plaintext_len = aes_cbc_decrypt(128, plaintext, cipher, cipher_len, "YELLOW SUBMARINE", iv);
-// 	printf("plaintext = {\n%s\n}\n\n", plaintext);
+	printf("[s2c2] d(e(d(ciphertext))) = {\n%s\n}\n\n", plaintext);
 
 	free(cipher);
 
@@ -78,7 +79,7 @@ int main(void)
 	unsigned char s2c4_plaintext[1024];
 	unsigned int s2c4_plaintext_len;
 	unsigned int key_len = 0;
-	aes_ecb_partial_crack(s2c4_plaintext, &s2c4_plaintext_len, NULL, &key_len);
+	aes_ecb_partial_crack(s2c4_plaintext, &s2c4_plaintext_len, &key_len);
 
 	printf("[s2c4] plaintext = {\n%s\n}\n", s2c4_plaintext);
 
@@ -115,7 +116,7 @@ int main(void)
 	memset(encoded_getstr, 0, 1024*sizeof(char));
 	encoded_getstr_len = profile_for(encoded_getstr, kv, "rc0r@husmail.com&role=admin", key);
 
-	printf("send: {\n");
+	printf("[s2c5] send: {\n");
 	kv_num = 3;
 	for(i=0; i<kv_num; i++) {
 		printf(" %s: '%s'%s\n", kv[i].key, kv[i].value, (i==(kv_num-1))?"":",");
@@ -176,12 +177,12 @@ int main(void)
 
 	// decrypt attack_str
 	s2c5_plain_len = aes_ecb_decrypt(128, s2c5_plain, attack_str, 48, key);
-	printf("recv string: '%s'\n", s2c5_plain);
+	printf("[s2c5] recv string: '%s'\n", s2c5_plain);
 
 	// decode
 	kv_num = decode_from_get(kv, s2c5_plain);
 
-	printf("recv: {\n");
+	printf("[s2c5] recv: {\n");
 	kv_num = 3;
 	for(i=0; i<kv_num; i++) {
 		printf(" %s: '%s'%s\n", kv[i].key, kv[i].value, (i==(kv_num-1))?"":",");
@@ -196,5 +197,16 @@ int main(void)
 		free(kv_a2[i].key);
 		free(kv_a2[i].value);
 	}
+
+	/**       Set 2 CHallenge 6       **/
+	/** ECB SINGLE BYTE DECRIPTION II **/
+	unsigned char s2c6_plaintext[1024];
+	unsigned int s2c6_plaintext_len;
+	unsigned int s2c6_key_len = 0;
+	aes_ecb_partial_crack2(s2c6_plaintext, &s2c6_plaintext_len, &s2c6_key_len);
+
+	printf("[s2c6] plaintext = {\n%s\n}\n", s2c6_plaintext);
+
+
 	return 0;
 }
