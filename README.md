@@ -3,7 +3,7 @@ matasano
 
 Code &amp; solutions for the matasano crypto challenge (http://cryptopals.com).
 
-Be warned: this code is _VERY_ hacky!
+Be warned: this code is **VERY** hacky!
 
 Code Structure:
 
