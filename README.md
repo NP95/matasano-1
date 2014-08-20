@@ -16,14 +16,13 @@ Code Structure:
 Progress:
 
     *** Set 1 ***
-     Challenge 1 .. 8 [done]
+     Challenge  1 ..  8 [done]
 
     *** Set 2 ***
-     Challenge 1 .. 8 [done]
-     Challenge 8   [working]
+     Challenge  9 .. 16 [done]
 
     *** Set 3 ***
-     Challenge 1   [working]
+     Challenge 17    [working]
 
 How to use:
 
