@@ -57,8 +57,8 @@ int aes_cbc_padding_oracle_decrypt(unsigned char *ciphertext, unsigned int ciphe
 
 unsigned int aes_cbc_padding_oracle_attack(unsigned char *plaintext, unsigned char *ciphertext, unsigned int ciphertext_len, unsigned char *key, unsigned char *iv)
 {
-	// NOTE: we're not going to use the key or iv here
-	// they're directly passed to the decryption routine
+	// NOTE: we're not going to use the key here
+	// it is directly passed to the decryption routine
 	int is_valid;
 	unsigned int num_blocks = ciphertext_len / 16;
 	unsigned char cipher_mod[ciphertext_len];
