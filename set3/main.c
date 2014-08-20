@@ -55,6 +55,96 @@ int aes_cbc_padding_oracle_decrypt(unsigned char *ciphertext, unsigned int ciphe
 	return pkcs7_unpadding(unpad, plain, plain_len, 16);
 }
 
+unsigned int aes_cbc_padding_oracle_attack(unsigned char *plaintext, unsigned char *ciphertext, unsigned int ciphertext_len, unsigned char *key, unsigned char *iv)
+{
+	// NOTE: we're not going to use the key or iv here
+	// they're directly passed to the decryption routine
+	int is_valid;
+	unsigned int num_blocks = ciphertext_len / 16;
+	unsigned char cipher_mod[ciphertext_len];
+	unsigned int cipher_mod_len;
+	unsigned char *ciphertext_hex;
+	unsigned char plain_xor[ciphertext_len];
+
+	int j, m;
+	unsigned int i, k, l, hits=0, cnt=0;
+
+	hex_encode(&ciphertext_hex, ciphertext, ciphertext_len);
+// 	printf("[%02d] cipher = '%s'\n", 0, ciphertext_hex);
+	free(ciphertext_hex);
+
+	for(i=num_blocks; i>=1; i--) {
+		// assemble modded ciphertext
+		if(i>1) {
+			l=0;
+			cipher_mod_len = i*16;
+			memcpy(cipher_mod, ciphertext, cipher_mod_len*sizeof(unsigned char));
+			memset(cipher_mod+cipher_mod_len-32, 0, 16*sizeof(unsigned char));
+		}
+		else {
+			l=1;
+			cipher_mod_len = (i+1)*16;
+			memset(cipher_mod, 0, cipher_mod_len*sizeof(unsigned char));
+			memcpy(cipher_mod+16, ciphertext, 16*sizeof(unsigned char));
+		}
+
+		// iterate over byte position of n-1 ciphertext block
+		for(j=15; j>=0; j--) {
+			cnt++;
+
+			// brute force
+			for(k=0; k<256; k++) {
+				cipher_mod[(i-2+l)*16+j] = k;
+				is_valid = aes_cbc_padding_oracle_decrypt(cipher_mod, cipher_mod_len, key, iv);
+				if(is_valid>0) {
+					hits++;
+					plain_xor[(i-1)*16+j] = (16-j) ^ k;
+					// update solved ciphertext bits to match
+					// next padding
+					for(m=15; m>=j; m--) {
+						cipher_mod[(i-2+l)*16+m] ^= (16-j) ^ ((16-j)+1);
+					}
+					break;
+				}
+			}
+
+			hex_encode(&ciphertext_hex, cipher_mod, cipher_mod_len);
+// 			printf("[%02d] cipher = '%s'\n", j, ciphertext_hex);
+			free(ciphertext_hex);
+		}
+	}
+	
+// 	printf("len=%d, hits=%d, cnt=%d\n", ciphertext_len, hits, cnt);
+
+	hex_encode(&ciphertext_hex, plain_xor, ciphertext_len);
+// 	printf("[%02d] plain_xor = '%s'\n", 0, ciphertext_hex);
+	free(ciphertext_hex);
+
+	unsigned char *plain;
+	unsigned char cipher_shift[ciphertext_len];
+
+	memset(cipher_shift, 0, ciphertext_len);
+	memcpy(cipher_shift, iv, 16*sizeof(unsigned char));
+	memcpy(cipher_shift+16, ciphertext, (ciphertext_len-16)*sizeof(unsigned char));
+
+	hex_encode(&ciphertext_hex, cipher_shift, ciphertext_len);
+// 	printf("[%02d] cipher_sh = '%s'\n", 0, ciphertext_hex);
+	free(ciphertext_hex);
+
+	fixed_xor(&plain, cipher_shift, plain_xor, ciphertext_len);
+	
+	// remove PKCS#7 padding
+	unsigned char unpad[ciphertext_len+1];
+	unsigned int unpad_len;
+
+	unpad_len = pkcs7_unpadding(unpad, plain, ciphertext_len, 16);
+	memcpy(plaintext, unpad, unpad_len*sizeof(unsigned char));
+
+	free(plain);
+
+	return unpad_len;
+}
+
 int main(void) {
 	// init rng
 	srand((unsigned int) time(NULL));
@@ -78,6 +168,14 @@ int main(void) {
 
 	is_valid = aes_cbc_padding_oracle_decrypt(s3c1_cipher, s3c1_cipher_len, key, iv);
 	printf("[s3c1] valid ... [%s]\n", (is_valid>0) ? "yes": "no");
+
+	// attack
+	unsigned char s3c1_plain[s3c1_cipher_len+1];
+	memset(s3c1_plain, 0, (s3c1_cipher_len+1)*sizeof(unsigned char));
+
+	aes_cbc_padding_oracle_attack(s3c1_plain, s3c1_cipher, s3c1_cipher_len, key, iv);
+
+	printf("[s3c1] plain = '%s'\n", s3c1_plain);
 
 	return 0;
 }
