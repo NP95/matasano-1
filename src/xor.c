@@ -6,8 +6,8 @@ void fixed_xor(unsigned char **out, unsigned char *in1, unsigned char *in2, unsi
 {
 	unsigned int i;
 
-	(*out) = malloc((in_size+1)*sizeof(unsigned char));
-	memset((*out), 0, (in_size+1)*sizeof(unsigned char));
+	(*out) = malloc((in_size)*sizeof(unsigned char));
+	memset((*out), 0, (in_size)*sizeof(unsigned char));
 
 	for(i=0; i<in_size; i++) {
 		(*out)[i] = in1[i] ^ in2[i];

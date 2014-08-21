@@ -177,5 +177,27 @@ int main(void) {
 
 	printf("[s3c1] plain = '%s'\n", s3c1_plain);
 
+	/** Set 3 Challenge 18 **/
+	/**  CTR  CIPHER MODE  **/
+	unsigned char s3c2_in_b64[] = "L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==";
+
+	unsigned char *s3c2_in;
+	unsigned int s3c2_in_len;
+
+	unsigned char s3c2_plain[128];
+	unsigned int s3c2_plain_len;
+	memset(s3c2_plain, 0, 128*sizeof(unsigned char));
+	
+	// base64 decode
+	s3c2_in_len = base64decode(&s3c2_in, s3c2_in_b64, strlen(s3c2_in_b64));
+// 	s3c2_in[s3c2_in_len] = '\0';
+	
+	// crypt
+	strncpy(key, "YELLOW SUBMARINE", 16);
+	s3c2_plain_len = aes_ctr_crypt(s3c2_plain, s3c2_in, s3c2_in_len, key, 0);
+// 	s3c2_plain[s3c2_plain_len] = '\0';
+
+	printf("[s3c2] plain = '%s'\n", s3c2_plain);
+	free(s3c2_in);
 	return 0;
 }

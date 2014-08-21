@@ -13,3 +13,6 @@ clean:
 	rm -rf ./src/*.o
 	rm -rf ./set*/*.o
 	rm -rf ./set*/*.out
+
+linecount:
+	wc -l ./set*/*.c ./set*/*.h ./include/*.h ./src/*.c

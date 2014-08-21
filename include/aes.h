@@ -18,6 +18,8 @@ unsigned int aes_ecb_decrypt(unsigned int block_len_bits, unsigned char *plainte
 unsigned int aes_cbc_encrypt(unsigned int block_len_bits, unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *key, unsigned char *iv);
 unsigned int aes_cbc_decrypt(unsigned int block_len_bits, unsigned char *plaintext, unsigned char *ciphertext, unsigned int ciphertext_len, unsigned char *key, unsigned char *iv);
 
+unsigned int aes_ctr_crypt(unsigned char *crypted, unsigned char *uncrypted, unsigned int uncrypted_len, unsigned char *key, unsigned int nonce);
+
 void aes_random_key(unsigned char *key, unsigned int key_size);
 
 unsigned int aes_cbc_oracle(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_key, unsigned char *iv);

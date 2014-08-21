@@ -98,6 +98,44 @@ unsigned int aes_cbc_decrypt(unsigned int block_len_bits, unsigned char *plainte
 	return bytes;
 }
 
+unsigned int aes_ctr_crypt(unsigned char *crypted, unsigned char *uncrypted, unsigned int uncrypted_len, unsigned char *key, unsigned int nonce)
+{
+	unsigned int num_blocks = uncrypted_len / 16;
+	unsigned int cnt = nonce;
+
+	unsigned char keystream_plain[16];
+	unsigned char keystream[16];
+
+	unsigned int bytes_remaining = uncrypted_len;
+	unsigned int bytes = 0;
+	unsigned int len = 0;
+
+	unsigned char *cipher_block;
+	unsigned int i, j;
+
+	for(i=0; i<num_blocks; i++) {
+		// initialize keystream
+		memset(keystream_plain, 0, 16*sizeof(unsigned char));
+		keystream_plain[8] = (cnt % 256);
+
+		// generate keystream
+		aes_ecb_encrypt(128, keystream, keystream_plain, 16, key);
+
+		// crypt block
+		len = (bytes_remaining>=16) ? 16 : bytes_remaining;
+		fixed_xor(&cipher_block, uncrypted+(i*16), keystream, len);
+		memcpy(crypted+(i*16), cipher_block, 16*sizeof(unsigned char));
+		bytes += len;
+		bytes_remaining -= len;
+		free(cipher_block);
+
+		// increment counter
+		cnt++;
+	}
+
+	return bytes;
+}
+
 unsigned int aes_ecb_partial_crack(unsigned char *plaintext, unsigned int *plaintext_length, unsigned int *key_length)
 {
 	unsigned char random_key[16];
