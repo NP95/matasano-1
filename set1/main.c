@@ -67,7 +67,7 @@ int main(void){
 	printf("cipher[hex] = '%s'\ncipher[str] = '%s'\n", cipher_text_str, cipher_text);
 
 	init_histogram(&e);
-	e = print_histogram(cipher_text, bytes_to_encode, 1);
+	e = histogram(cipher_text, bytes_to_encode, 1);
 	printf("match[i] ?= 0x%02x\n", e.byte[0]);
 
 	key = malloc(bytes_to_encode+1);
@@ -109,7 +109,7 @@ int main(void){
 	while((read = getline(&line_str, &len, fp)) != -1) {
 		bytes_to_encode = hex_decode(&line, line_str, strlen(line_str));
 
-		e = print_histogram(line, bytes_to_encode, 0);
+		e = histogram(line, bytes_to_encode, 0);
 
 		// just look at the interesting lines
 		if(e.num[0] > 4) {

@@ -45,7 +45,7 @@ int attack_single_byte_xor(unsigned char **out, unsigned char **key, unsigned ch
 	memset((*out), 0, (cipher_size+1)*sizeof(unsigned char));
 
 
-	e = print_histogram(cipher, cipher_size, 0);
+	e = histogram(cipher, cipher_size, 0);
 
 	for(i=0; i<13; i++) {
 // 		printf("%02x x %d\n", e.byte[i], e.num[i]);
