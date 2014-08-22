@@ -5,6 +5,7 @@
 #include "../include/aes.h"
 #include "../include/pkcs.h"
 #include "../include/hex2base64.h"
+#include "../include/histogram.h"
 
 unsigned int aes_cbc_padding_oracle(unsigned char *ciphertext, unsigned char *key, unsigned char *iv)
 {
@@ -69,9 +70,9 @@ unsigned int aes_cbc_padding_oracle_attack(unsigned char *plaintext, unsigned ch
 	int j, m;
 	unsigned int i, k, l, hits=0, cnt=0;
 
-	hex_encode(&ciphertext_hex, ciphertext, ciphertext_len);
+// 	hex_encode(&ciphertext_hex, ciphertext, ciphertext_len);
 // 	printf("[%02d] cipher = '%s'\n", 0, ciphertext_hex);
-	free(ciphertext_hex);
+// 	free(ciphertext_hex);
 
 	for(i=num_blocks; i>=1; i--) {
 		// assemble modded ciphertext
@@ -108,9 +109,9 @@ unsigned int aes_cbc_padding_oracle_attack(unsigned char *plaintext, unsigned ch
 				}
 			}
 
-			hex_encode(&ciphertext_hex, cipher_mod, cipher_mod_len);
+// 			hex_encode(&ciphertext_hex, cipher_mod, cipher_mod_len);
 // 			printf("[%02d] cipher = '%s'\n", j, ciphertext_hex);
-			free(ciphertext_hex);
+// 			free(ciphertext_hex);
 		}
 	}
 	
@@ -127,9 +128,9 @@ unsigned int aes_cbc_padding_oracle_attack(unsigned char *plaintext, unsigned ch
 	memcpy(cipher_shift, iv, 16*sizeof(unsigned char));
 	memcpy(cipher_shift+16, ciphertext, (ciphertext_len-16)*sizeof(unsigned char));
 
-	hex_encode(&ciphertext_hex, cipher_shift, ciphertext_len);
+// 	hex_encode(&ciphertext_hex, cipher_shift, ciphertext_len);
 // 	printf("[%02d] cipher_sh = '%s'\n", 0, ciphertext_hex);
-	free(ciphertext_hex);
+// 	free(ciphertext_hex);
 
 	fixed_xor(&plain, cipher_shift, plain_xor, ciphertext_len);
 	
@@ -199,5 +200,132 @@ int main(void) {
 
 	printf("[s3c2] plain = '%s'\n", s3c2_plain);
 	free(s3c2_in);
+
+	/**    Set 3 Challenge 19     **/
+	/** CTR STATIC NONCE CRACKING **/
+	unsigned char *s3c3_plain_b64[40] = {
+		"SSBoYXZlIG1ldCB0aGVtIGF0IGNsb3NlIG9mIGRheQ==",
+		"Q29taW5nIHdpdGggdml2aWQgZmFjZXM=",
+		"RnJvbSBjb3VudGVyIG9yIGRlc2sgYW1vbmcgZ3JleQ==",
+		"RWlnaHRlZW50aC1jZW50dXJ5IGhvdXNlcy4=",
+		"SSBoYXZlIHBhc3NlZCB3aXRoIGEgbm9kIG9mIHRoZSBoZWFk",
+		"T3IgcG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
+		"T3IgaGF2ZSBsaW5nZXJlZCBhd2hpbGUgYW5kIHNhaWQ=",
+		"UG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
+		"QW5kIHRob3VnaHQgYmVmb3JlIEkgaGFkIGRvbmU=",
+		"T2YgYSBtb2NraW5nIHRhbGUgb3IgYSBnaWJl",
+		"VG8gcGxlYXNlIGEgY29tcGFuaW9u",
+		"QXJvdW5kIHRoZSBmaXJlIGF0IHRoZSBjbHViLA==",
+		"QmVpbmcgY2VydGFpbiB0aGF0IHRoZXkgYW5kIEk=",
+		"QnV0IGxpdmVkIHdoZXJlIG1vdGxleSBpcyB3b3JuOg==",
+		"QWxsIGNoYW5nZWQsIGNoYW5nZWQgdXR0ZXJseTo=",
+		"QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=",
+		"VGhhdCB3b21hbidzIGRheXMgd2VyZSBzcGVudA==",
+		"SW4gaWdub3JhbnQgZ29vZCB3aWxsLA==",
+		"SGVyIG5pZ2h0cyBpbiBhcmd1bWVudA==",
+		"VW50aWwgaGVyIHZvaWNlIGdyZXcgc2hyaWxsLg==",
+		"V2hhdCB2b2ljZSBtb3JlIHN3ZWV0IHRoYW4gaGVycw==",
+		"V2hlbiB5b3VuZyBhbmQgYmVhdXRpZnVsLA==",
+		"U2hlIHJvZGUgdG8gaGFycmllcnM/",
+		"VGhpcyBtYW4gaGFkIGtlcHQgYSBzY2hvb2w=",
+		"QW5kIHJvZGUgb3VyIHdpbmdlZCBob3JzZS4=",
+		"VGhpcyBvdGhlciBoaXMgaGVscGVyIGFuZCBmcmllbmQ=",
+		"V2FzIGNvbWluZyBpbnRvIGhpcyBmb3JjZTs=",
+		"SGUgbWlnaHQgaGF2ZSB3b24gZmFtZSBpbiB0aGUgZW5kLA==",
+		"U28gc2Vuc2l0aXZlIGhpcyBuYXR1cmUgc2VlbWVkLA==",
+		"U28gZGFyaW5nIGFuZCBzd2VldCBoaXMgdGhvdWdodC4=",
+		"VGhpcyBvdGhlciBtYW4gSSBoYWQgZHJlYW1lZA==",
+		"QSBkcnVua2VuLCB2YWluLWdsb3Jpb3VzIGxvdXQu",
+		"SGUgaGFkIGRvbmUgbW9zdCBiaXR0ZXIgd3Jvbmc=",
+		"VG8gc29tZSB3aG8gYXJlIG5lYXIgbXkgaGVhcnQs",
+		"WWV0IEkgbnVtYmVyIGhpbSBpbiB0aGUgc29uZzs=",
+		"SGUsIHRvbywgaGFzIHJlc2lnbmVkIGhpcyBwYXJ0",
+		"SW4gdGhlIGNhc3VhbCBjb21lZHk7",
+		"SGUsIHRvbywgaGFzIGJlZW4gY2hhbmdlZCBpbiBoaXMgdHVybiw=",
+		"VHJhbnNmb3JtZWQgdXR0ZXJseTo=",
+		"QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4="
+	};
+	unsigned char *s3c3_plain[40];
+	unsigned int s3c3_plain_len[40];
+	unsigned char s3c3_cipher[40][128];
+	unsigned char *s3c3_cipher_hex[40];
+	unsigned int s3c3_cipher_len[40];
+	// first block transposed
+	unsigned char s3c3_cipher_trans[32][40];
+	unsigned char *s3c3_plain_trans[32];
+
+	unsigned char ks[32];
+	unsigned int i, j;
+
+	// generate random key
+	aes_random_key(key, 16);
+
+	// encrypt strings
+	for(i=0; i<40; i++) {
+		// base64 decode
+		s3c3_plain_len[i] = base64decode(&s3c3_plain[i], s3c3_plain_b64[i], strlen(s3c3_plain_b64[i]));
+
+		// aes ctr crypt
+		s3c3_cipher_len[i] = aes_ctr_crypt(s3c3_cipher[i], s3c3_plain[i], s3c3_plain_len[i], key, 0);
+
+		// free plain
+		free(s3c3_plain[i]);
+	}
+
+	// crckng...
+	for(i=0; i<40; i++) {
+		// transpose
+// 		for(j=0; j<16; j++) {
+		for(j=0; j<s3c3_cipher_len[i]; j++) {
+			s3c3_cipher_trans[j][i] = s3c3_cipher[i][j];
+		}
+
+		// debug print orig ciphertexts
+		hex_encode(&s3c3_cipher_hex[i], s3c3_cipher[i], s3c3_cipher_len[i]);
+		printf("[s3c3] %02d: len=%2d, %s\n", i, s3c3_cipher_len[i], s3c3_cipher_hex[i]);
+		free(s3c3_cipher_hex[i]);
+	}
+
+	max_hist_t hist;
+
+	for(j=0; j<32; j++) {
+		// debug print transposed ciphertexts
+		hex_encode(&s3c3_cipher_hex[j], s3c3_cipher_trans[j], 40);
+		printf("[s3c3] %02d: %s\n", j, s3c3_cipher_hex[j]);
+		free(s3c3_cipher_hex[j]);
+		// generate histograms
+		init_histogram(&hist);
+		hist = print_histogram(s3c3_cipher_trans[j], 40, 0);
+		for(i=0; i<HIST_DEPTH; i++) {
+			// skip obviously wrong counts occuring in messages
+			// with 2 blocks (we've got loads of 0x00 in the
+			// transposed ciphertexts, so discard them
+			if((hist.num[i] > 30) && (hist.byte[i] == 0x00))
+				continue;
+			// guess keystream
+			switch(j) {
+				// we don't start with spaces, right?
+				case 0: ks[j] = hist.byte[i] ^ 0x54;
+					 break;
+				default: ks[j] = hist.byte[i] ^ 0x20;
+					 break;
+			}
+			xor_key(&s3c3_plain_trans[j], s3c3_cipher_trans[j], 40, &ks[j], 1);
+			// validate by analyzing produced plaintext
+			if(is_cleartext(s3c3_plain_trans[j], 40)==0) {
+				break;
+				free(s3c3_plain_trans[j]);
+			}
+			free(s3c3_plain_trans[j]);
+		}
+	}
+
+	// decrypt
+	for(j=0; j<40; j++) {
+		fixed_xor(&s3c3_plain[j], s3c3_cipher[j], ks, s3c3_cipher_len[j]);
+		s3c3_plain[j][s3c3_cipher_len[j]] = 0;
+		printf("[s3c3] %02d: plain = '%s'\n", j, s3c3_plain[j]);
+		free(s3c3_plain[j]);
+	}
 	return 0;
 }

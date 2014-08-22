@@ -4,14 +4,16 @@
 #include <stdio.h>
 #include <string.h>
 
+#define HIST_DEPTH	10
+
 struct max_hist {
-	unsigned char byte[6];
-	unsigned int num[6];
+	unsigned char byte[HIST_DEPTH];
+	unsigned int num[HIST_DEPTH];
 };
 
 typedef struct max_hist max_hist_t;
 
-static const unsigned char *hist_most_common = "etaoin shrdlu";
+static const unsigned char *hist_most_common = "ETAOINSHRDLU etaoinshrdlu";
 
 void init_histogram(max_hist_t *hist);
 max_hist_t print_histogram(unsigned char *input, unsigned int size, unsigned short do_print);

@@ -5,7 +5,7 @@ void init_histogram(max_hist_t *hist)
 	unsigned int i;
 
 	// init histogram
-	for(i=0; i<6; i++) {
+	for(i=0; i<HIST_DEPTH; i++) {
 		(*hist).byte[i] = 0;
 		(*hist).num[i] = 0;
 	}
@@ -17,12 +17,7 @@ max_hist_t print_histogram(unsigned char *input, unsigned int size, unsigned sho
 	unsigned int hist[256];
 	max_hist_t max;
 	
-// 	// init histogram
-// 	for(i=0; i<6; i++) {
-// 		max.byte[i] = 0;
-// 		max.num[i] = 0;
-// 	}
-
+	// init histogram
 	init_histogram(&max);
 
 	// init histogram to all zeroes
@@ -35,8 +30,8 @@ max_hist_t print_histogram(unsigned char *input, unsigned int size, unsigned sho
 		hist[input[i]]++;
 	}
 
-	// print histogram with 5 most occuring bytes
-	for(e=0; e<6; e++) {
+	// print histogram with 'depth' most occuring bytes
+	for(e=0; e<HIST_DEPTH; e++) {
 		for(i=0; i<256; i++) {
 			if(hist[i]!=0) {
 				if(do_print>0)
@@ -65,7 +60,7 @@ int is_cleartext(unsigned char *in, unsigned int size)
 
 	h = print_histogram(in, size, 0);
 
-	for(i=0; i<6; i++) {
+	for(i=0; i<HIST_DEPTH; i++) {
 		for(j=0; j<strlen(hist_most_common); j++) {
 			if(h.byte[i] == hist_most_common[j])
 				hits++;
