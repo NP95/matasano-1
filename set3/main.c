@@ -287,6 +287,8 @@ int main(void) {
 	}
 
 	max_hist_t hist;
+	max_hist2_t hist2;
+	max_hist3_t hist3;
 
 	for(j=0; j<32; j++) {
 		// debug print transposed ciphertexts
@@ -295,8 +297,13 @@ int main(void) {
 		free(s3c3_cipher_hex[j]);
 		// generate histograms
 		init_histogram(&hist);
-		hist = print_histogram(s3c3_cipher_trans[j], 40, 0);
+		init_histogram2(&hist2);
+		init_histogram3(&hist3);
+		hist = histogram(s3c3_cipher_trans[j], 40, 0);
+		hist2 = histogram2(s3c3_cipher_trans[j], 40, 0);
+		hist3 = histogram3(s3c3_cipher_trans[j], 40, 0);
 		for(i=0; i<HIST_DEPTH; i++) {
+			/**** SINGLE BYTE CRCKNG ****/
 			// skip obviously wrong counts occuring in messages
 			// with 2 blocks (we've got loads of 0x00 in the
 			// transposed ciphertexts, so discard them
@@ -317,6 +324,45 @@ int main(void) {
 				free(s3c3_plain_trans[j]);
 			}
 			free(s3c3_plain_trans[j]);
+			/**** ****************** ****/
+			/**** DOUBLE BYTE CRCKNG ****//*
+			if((hist2.num[i] > 10) &&
+			   (hist2.byte[i][0] == 0x00) &&
+			   (hist2.byte[i][1] == 0x00))
+				continue;
+
+			if(j<31) {
+				ks[j] = hist2.byte[i][0] ^ 'e';
+				ks[j+1] = hist2.byte[i][1] ^ ' ';
+				xor_key(&s3c3_plain_trans[j], s3c3_cipher_trans[j], 40, &ks[j], 2);
+				// validate by analyzing produced plaintext
+				if(is_cleartext(s3c3_plain_trans[j], 40)==0) {
+					break;
+					free(s3c3_plain_trans[j]);
+				}
+				free(s3c3_plain_trans[j]);
+			}
+			*//**** ****************** ****/
+			/**** TRIPLE BYTE CRCKNG ****//*
+			if((hist3.num[i] > 5) &&
+			   (hist3.byte[i][0] == 0x00) &&
+			   (hist3.byte[i][1] == 0x00) &&
+			   (hist3.byte[i][2] == 0x00))
+				continue;
+
+			if(j<30) {
+				ks[j] = hist3.byte[i][0] ^ 't';
+				ks[j+1] = hist3.byte[i][1] ^ 'h';
+				ks[j+2] = hist3.byte[i][2] ^ 'e';
+				xor_key(&s3c3_plain_trans[j], s3c3_cipher_trans[j], 40, &ks[j], 3);
+				// validate by analyzing produced plaintext
+				if(is_cleartext(s3c3_plain_trans[j], 40)==0) {
+					break;
+					free(s3c3_plain_trans[j]);
+				}
+				free(s3c3_plain_trans[j]);
+			}
+			*//**** ****************** ****/
 		}
 	}
 
@@ -327,5 +373,6 @@ int main(void) {
 		printf("[s3c3] %02d: plain = '%s'\n", j, s3c3_plain[j]);
 		free(s3c3_plain[j]);
 	}
+
 	return 0;
 }
