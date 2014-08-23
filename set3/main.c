@@ -6,6 +6,7 @@
 #include "../include/pkcs.h"
 #include "../include/hex2base64.h"
 #include "../include/histogram.h"
+#include "../include/rrand.h"
 
 unsigned int aes_cbc_padding_oracle(unsigned char *ciphertext, unsigned char *key, unsigned char *iv)
 {
@@ -519,6 +520,15 @@ int main(void) {
 		printf("[s3c4] %02d: plain = '%s'\n", j, s3c4_plain[j]);
 		free(s3c4_plain[j]);
 	}
+
+	/** Set 3 Challenge 21 **/
+	/**     MT19937 RNG    **/
+	mt19937_srand((unsigned int) time(NULL));
+	printf("[s3c5] mt19937_rand() = %u\n", mt19937_rand());
+
+	/** Set 3 Challenge 22  **/
+	/** MT19937 SEED CRCKNG **/
+	printf("[s3c6] %u: mt19937_rand() = %u\n", time(NULL), mt19937_crack_seed());
 
 	return 0;
 }
