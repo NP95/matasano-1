@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "../include/rrand.h"
 
 void mt19937_srand(unsigned int seed)
@@ -35,9 +36,12 @@ unsigned int mt19937_rand(void)
 		mt19937_generate();
 
 	unsigned int y = mt19937_state[mt19937_index];
+// 	printf("[s3c6] real_state = %08x\n", y);
 
 	y = y ^ (y >> 11);
+// 	printf("[s3c6] real_state = %08x\n", y);
 	y = y ^ ((y << 7) & 0x9d2c5680);
+// 	printf("[s3c6] real_state = %08x\n", y);
 	y = y ^ ((y << 15) & 0xefc60000);
 	y = y ^ (y >> 18);
 
@@ -45,12 +49,50 @@ unsigned int mt19937_rand(void)
 	return y;
 }
 
-unsigned int mt19937_crack_seed(void)
+unsigned int mt19937_brute_timeseed(void)
+{
+	unsigned int start_time = time(NULL);
+	unsigned int out = mt19937_oracle();
+	unsigned int stop_time = time(NULL);
+
+	unsigned int i=0;
+
+	// brute force seed in range of possible values
+	for(i=start_time; i<stop_time; i++) {
+		mt19937_srand(i);
+		if(mt19937_rand() == out)
+			return i;
+	}
+
+	return 0;
+}
+	
+unsigned int mt19937_crack(unsigned int *outputs)
+{
+	unsigned int *y = outputs;
+
+// 	y = unBitshiftRightXor(y, 18);
+// 	y = unBitshiftLeftXor(y, 15, 0xefc60000);
+// 	y = unBitshiftLeftXor(y, 7, 0x9d2c5680);
+// 	y = unBitshiftRightXor(y, 11);
+// 
+// 	printf("[s3c6] crck_state = %08x\n", y);
+// 	// y = mt19937_state[0]
+// 
+// // 	printf("[s3c6] crck_state = %08x\n", y);
+// 
+// 	return y;
+}
+
+unsigned int mt19937_oracle(void)
 {
 	unsigned int sleep_time = 40 + rand() % 960;
+	unsigned int seed = 0;
 
 	sleep(sleep_time);
-	mt19937_srand((unsigned int) time(NULL));
+	seed = (unsigned int) time(NULL);
+	printf("[s3c6] seed = %08x\n", seed);
+	mt19937_srand(seed);
 
 	sleep_time = 40 + rand() % 960;
 	sleep(sleep_time);
@@ -58,3 +100,48 @@ unsigned int mt19937_crack_seed(void)
 	return mt19937_rand();
 }
 
+/**
+ * following code borrowed from:
+ * https://jazzy.id.au/2010/09/22/cracking_random_number_generators_part_3.html
+ **/
+unsigned int unBitshiftRightXor(unsigned int value, unsigned int shift)
+{
+	// we part of the value we are up to (with a width of shift bits)
+	unsigned int i = 0;
+	// we accumulate the result here
+	unsigned int result = 0;
+	// iterate until we've done the full 32 bits
+	while (i * shift < 32) {
+		// create a mask for this part
+		unsigned int partMask = (0xffffffff << (32 - shift)) >>/*>*/ (shift * i);
+		// obtain the part
+		unsigned int part = value & partMask;
+		// unapply the xor from the next part of the integer
+		value ^= part >>/*>*/ shift;
+		// add the part to the result
+		result |= part;
+		i++;
+	}
+	return result;
+}
+
+unsigned int unBitshiftLeftXor(unsigned int value, unsigned int shift, unsigned int mask)
+{
+	// we part of the value we are up to (with a width of shift bits)
+	unsigned int i = 0;
+	// we accumulate the result here
+	unsigned int result = 0;
+	// iterate until we've done the full 32 bits
+	while (i * shift < 32) {
+		// create a mask for this part
+		unsigned int partMask = (0xffffffff >>/*>*/ (32 - shift)) << (shift * i);
+		// obtain the part
+		unsigned int part = value & partMask;
+		// unapply the xor from the next part of the integer
+		value ^= (part << shift) & mask;
+		// add the part to the result
+		result |= part;
+		i++;
+	}
+	return result;
+}

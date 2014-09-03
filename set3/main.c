@@ -528,7 +528,10 @@ int main(void) {
 
 	/** Set 3 Challenge 22  **/
 	/** MT19937 SEED CRCKNG **/
-	printf("[s3c6] %u: mt19937_rand() = %u\n", time(NULL), mt19937_crack_seed());
+	printf("[s3c6] mt19937_seed = %08x\n", mt19937_brute_timeseed());
+
+	/**  Set 3 Challenge 23  **/
+	/** MT19937 STATE CRCKNG **/
 
 	return 0;
 }
