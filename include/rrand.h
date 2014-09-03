@@ -1,6 +1,7 @@
 #ifndef __RRAND_H
 #define __RRAND_H
 
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -11,9 +12,11 @@ void mt19937_srand(unsigned int seed);
 void mt19937_generate(void);
 unsigned int mt19937_rand(void);
 
+void mt19937_srand_states(unsigned int *states);
+
 unsigned int mt19937_oracle(void);
 unsigned int mt19937_brute_timeseed(void);
-unsigned int mt19937_crack(unsigned int *outputs);
+unsigned int mt19937_recover_states(unsigned int *outputs, unsigned int *recovered_states);
 
 /**
  * following code borrowed from:

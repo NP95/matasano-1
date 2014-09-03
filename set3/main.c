@@ -532,6 +532,47 @@ int main(void) {
 
 	/**  Set 3 Challenge 23  **/
 	/** MT19937 STATE CRCKNG **/
+	unsigned int out_arr[624];
+	unsigned int next_out_arr[624];
+	unsigned int predicted_out_arr[624];
+	unsigned int states[624];
+	unsigned int prediction_errors = 0;
+	
+	mt19937_srand((unsigned int) time(NULL));
 
+	// obtain 624 consecutive outputs
+	for(i=0; i<624; i++) {
+		out_arr[i] = mt19937_rand();
+	}
+
+	// obtain next 624 outputs
+	for(i=0; i<624; i++) {
+		next_out_arr[i] = mt19937_rand();
+	}
+
+	// recover internal states
+	mt19937_recover_states(out_arr, states);
+
+	// reset mt
+	mt19937_srand(time(NULL));
+	mt19937_rand();
+	mt19937_rand();
+	mt19937_rand();
+
+	// initialize new MT instance with recovered
+	// states and index
+	mt19937_srand_states(states);
+
+	// predict next 624 RNG outputs
+	// (and check vs next_out_arr)
+	for(i=0; i<624; i++) {
+		predicted_out_arr[i] = mt19937_rand();
+		if(predicted_out_arr[i] != next_out_arr[i]) {
+			prediction_errors++;
+		}
+	}
+
+	printf("[s3c7] Predicted 624 random numbers. Prediction errors: %d\n", prediction_errors);
+	
 	return 0;
 }

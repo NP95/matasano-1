@@ -17,6 +17,16 @@ void mt19937_srand(unsigned int seed)
 	}
 }
 
+void mt19937_srand_states(unsigned int *states)
+{
+	unsigned int i;
+
+	mt19937_index = 0;
+	for(i=0; i<624; i++) {
+		mt19937_state[i] = states[i];
+	}
+}
+
 void mt19937_generate(void)
 {
 	unsigned int i, y;
@@ -67,21 +77,23 @@ unsigned int mt19937_brute_timeseed(void)
 	return 0;
 }
 	
-unsigned int mt19937_crack(unsigned int *outputs)
+unsigned int mt19937_recover_states(unsigned int *outputs, unsigned int *recovered_states)
 {
 	unsigned int *y = outputs;
+	unsigned int state[624];
+	unsigned int i;
 
-// 	y = unBitshiftRightXor(y, 18);
-// 	y = unBitshiftLeftXor(y, 15, 0xefc60000);
-// 	y = unBitshiftLeftXor(y, 7, 0x9d2c5680);
-// 	y = unBitshiftRightXor(y, 11);
-// 
+	for(i=0; i<624; i++) {
+		state[i] = unBitshiftRightXor(y[i], 18);
+		state[i] = unBitshiftLeftXor(state[i], 15, 0xefc60000);
+		state[i] = unBitshiftLeftXor(state[i], 7, 0x9d2c5680);
+		state[i] = unBitshiftRightXor(state[i], 11);
+	}
+
+	memcpy(recovered_states, state, 624 * sizeof(unsigned int));
 // 	printf("[s3c6] crck_state = %08x\n", y);
-// 	// y = mt19937_state[0]
-// 
-// // 	printf("[s3c6] crck_state = %08x\n", y);
-// 
-// 	return y;
+
+	return state[0];
 }
 
 unsigned int mt19937_oracle(void)
