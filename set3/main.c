@@ -528,7 +528,7 @@ int main(void) {
 
 	/** Set 3 Challenge 22  **/
 	/** MT19937 SEED CRCKNG **/
-	printf("[s3c6] mt19937_seed = %08x\n", mt19937_brute_timeseed());
+// 	printf("[s3c6] mt19937_seed = %08x\n", mt19937_brute_timeseed());
 
 	/**  Set 3 Challenge 23  **/
 	/** MT19937 STATE CRCKNG **/
@@ -574,5 +574,20 @@ int main(void) {
 
 	printf("[s3c7] Predicted 624 random numbers. Prediction errors: %d\n", prediction_errors);
 	
+	/**  Set 3  Challenge 24  **/
+	/** MT19937 STREAM CIPHER **/
+	unsigned char s3c8_plain[] = "Hello MT19937 stream cipher world!"; // 34
+	unsigned char s3c8_crypted[64];
+	unsigned int s3c8_bytes = 0;
+	unsigned int s3c8_seed = ((unsigned int)time(NULL) & 0x0000FFFF);
+
+	s3c8_bytes = mt19937_ctr_crypt(s3c8_crypted, s3c8_plain, 34, s3c8_seed);
+
+	printf("[s3c8] s3c8_crypted(%d) = '%s'\n", s3c8_bytes, s3c8_crypted);
+	memset(s3c8_plain, 0, 34*sizeof(unsigned char));
+	s3c8_bytes = mt19937_ctr_crypt(s3c8_plain, s3c8_crypted, s3c8_bytes, s3c8_seed);
+	printf("[s3c8] s3c8_plain(%d) = '%s'\n", s3c8_bytes, s3c8_plain);
+
+
 	return 0;
 }

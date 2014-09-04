@@ -111,7 +111,7 @@ unsigned int aes_ctr_crypt(unsigned char *crypted, unsigned char *uncrypted, uns
 	unsigned int len = 0;
 
 	unsigned char *cipher_block;
-	unsigned int i, j;
+	unsigned int i;
 
 	for(i=0; i<num_blocks; i++) {
 		// initialize keystream

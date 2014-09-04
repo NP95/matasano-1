@@ -157,3 +157,37 @@ unsigned int unBitshiftLeftXor(unsigned int value, unsigned int shift, unsigned 
 	}
 	return result;
 }
+
+unsigned int mt19937_ctr_crypt(unsigned char *crypted, unsigned char *uncrypted, unsigned int uncrypted_len, unsigned int key_seed)
+{
+	unsigned int num_blocks = uncrypted_len;
+
+	unsigned char keystream_plain;
+	unsigned char keystream;
+
+	unsigned int bytes_remaining = uncrypted_len;
+	unsigned int bytes = 0;
+	unsigned int len = 0;
+
+	unsigned char *cipher_block;
+	unsigned int i;
+
+	// initialize RNG
+	mt19937_srand(key_seed);
+
+	for(i=0; i<num_blocks; i++) {
+		// initialize keystream
+		keystream_plain = 0;
+		keystream_plain = (unsigned char) (mt19937_rand() % 256);
+
+		// generate keystream
+		// RNG output = keystream, so nothing to do here
+		keystream = keystream_plain;
+
+		// crypt block
+		crypted[i] = uncrypted[i] ^ keystream;
+		bytes++;
+	}
+
+	return bytes;
+}
