@@ -59,6 +59,27 @@ unsigned int mt19937_rand(void)
 	return y;
 }
 
+unsigned int mt19937_generate_token(void)
+{
+	mt19937_srand((unsigned int) time(NULL));
+	return mt19937_rand();
+}
+
+int mt19937_is_timeseeded(unsigned int input, unsigned int time_window)
+{
+	unsigned int cur_time = (unsigned int) time(NULL);
+	unsigned int i;
+
+	for(i=cur_time-time_window; i<=cur_time; i++) {
+		mt19937_srand(i);
+		if(mt19937_rand()==input) {
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
 unsigned int mt19937_brute_timeseed(void)
 {
 	unsigned int start_time = time(NULL);
@@ -112,6 +133,63 @@ unsigned int mt19937_oracle(void)
 	return mt19937_rand();
 }
 
+unsigned int mt19937_ctr_oracle(unsigned char *crypted, unsigned char *uncrypted, unsigned int uncrypted_len)
+{
+	unsigned char plaintext_mod[uncrypted_len+10];
+	unsigned int header;
+	unsigned int seed = ((unsigned int)time(NULL) & 0x0000FFFF);
+	unsigned int i;
+
+	header = 5 + (rand() % 6);
+
+	// set header
+	for(i=0; i<header; i++) {
+		plaintext_mod[i] = rand() % 256;
+	}
+
+	// set plaintext
+	for(i=0; i<uncrypted_len; i++) {
+		plaintext_mod[header+i] = uncrypted[i];
+	}
+
+	printf("[s3c8] mt19937_ctr_oracle(): seed = %d\n", seed);
+	return mt19937_ctr_crypt(crypted, plaintext_mod, uncrypted_len+header, seed);
+}
+
+unsigned int mt19937_ctr_crypt(unsigned char *crypted, unsigned char *uncrypted, unsigned int uncrypted_len, unsigned int key_seed)
+{
+	unsigned int num_blocks = uncrypted_len;
+
+	unsigned char keystream_plain;
+	unsigned char keystream;
+
+	unsigned int bytes_remaining = uncrypted_len;
+	unsigned int bytes = 0;
+	unsigned int len = 0;
+
+	unsigned char *cipher_block;
+	unsigned int i;
+
+	// initialize RNG
+	mt19937_srand(key_seed);
+
+	for(i=0; i<num_blocks; i++) {
+		// initialize keystream
+		keystream_plain = 0;
+		keystream_plain = (unsigned char) (mt19937_rand() % 256);
+
+		// generate keystream
+		// RNG output = keystream, so nothing to do here
+		keystream = keystream_plain;
+
+		// crypt block
+		crypted[i] = uncrypted[i] ^ keystream;
+		bytes++;
+	}
+
+	return bytes;
+}
+
 /**
  * following code borrowed from:
  * https://jazzy.id.au/2010/09/22/cracking_random_number_generators_part_3.html
@@ -158,36 +236,3 @@ unsigned int unBitshiftLeftXor(unsigned int value, unsigned int shift, unsigned 
 	return result;
 }
 
-unsigned int mt19937_ctr_crypt(unsigned char *crypted, unsigned char *uncrypted, unsigned int uncrypted_len, unsigned int key_seed)
-{
-	unsigned int num_blocks = uncrypted_len;
-
-	unsigned char keystream_plain;
-	unsigned char keystream;
-
-	unsigned int bytes_remaining = uncrypted_len;
-	unsigned int bytes = 0;
-	unsigned int len = 0;
-
-	unsigned char *cipher_block;
-	unsigned int i;
-
-	// initialize RNG
-	mt19937_srand(key_seed);
-
-	for(i=0; i<num_blocks; i++) {
-		// initialize keystream
-		keystream_plain = 0;
-		keystream_plain = (unsigned char) (mt19937_rand() % 256);
-
-		// generate keystream
-		// RNG output = keystream, so nothing to do here
-		keystream = keystream_plain;
-
-		// crypt block
-		crypted[i] = uncrypted[i] ^ keystream;
-		bytes++;
-	}
-
-	return bytes;
-}

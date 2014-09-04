@@ -13,12 +13,16 @@ void mt19937_srand(unsigned int seed);
 void mt19937_generate(void);
 unsigned int mt19937_rand(void);
 
+unsigned int mt19937_generate_token(void);
+int mt19937_is_timeseeded(unsigned int input, unsigned int time_window);
+
 void mt19937_srand_states(unsigned int *states);
 
 unsigned int mt19937_oracle(void);
 unsigned int mt19937_brute_timeseed(void);
 unsigned int mt19937_recover_states(unsigned int *outputs, unsigned int *recovered_states);
 
+unsigned int mt19937_ctr_oracle(unsigned char *crypted, unsigned char *uncrypted, unsigned int uncrypted_len);
 unsigned int mt19937_ctr_crypt(unsigned char *crypted, unsigned char *uncrypted, unsigned int uncrypted_len, unsigned int key_seed);
 
 /**

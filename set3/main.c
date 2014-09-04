@@ -576,18 +576,38 @@ int main(void) {
 	
 	/**  Set 3  Challenge 24  **/
 	/** MT19937 STREAM CIPHER **/
-	unsigned char s3c8_plain[] = "Hello MT19937 stream cipher world!"; // 34
+	unsigned char s3c8_plain[24] = "AAAAAAAAAAAAAA"; // 14
 	unsigned char s3c8_crypted[64];
-	unsigned int s3c8_bytes = 0;
-	unsigned int s3c8_seed = ((unsigned int)time(NULL) & 0x0000FFFF);
+	unsigned char *s3c8_crypted_hex;
+	unsigned char s3c8_uncrypted[64];
+	unsigned int s3c8_bytes = 0, s3c8_crypted_bytes;
+	unsigned int cracked_seed = 0;
 
-	s3c8_bytes = mt19937_ctr_crypt(s3c8_crypted, s3c8_plain, 34, s3c8_seed);
+	s3c8_crypted_bytes = mt19937_ctr_oracle(s3c8_crypted, s3c8_plain, 14);
 
-	printf("[s3c8] s3c8_crypted(%d) = '%s'\n", s3c8_bytes, s3c8_crypted);
-	memset(s3c8_plain, 0, 34*sizeof(unsigned char));
-	s3c8_bytes = mt19937_ctr_crypt(s3c8_plain, s3c8_crypted, s3c8_bytes, s3c8_seed);
-	printf("[s3c8] s3c8_plain(%d) = '%s'\n", s3c8_bytes, s3c8_plain);
+	hex_encode(&s3c8_crypted_hex, s3c8_crypted, s3c8_crypted_bytes);
+	printf("[s3c8] s3c8_crypted(%d) = '%s'\n", s3c8_crypted_bytes, s3c8_crypted_hex);
+	free(s3c8_crypted_hex);
 
+	// we know a 16 bit seed was used, so brute force should crack
+	// it in secs...
+	for(i=0; i<65536; i++) {
+		memset(s3c8_uncrypted, 0, 64*sizeof(unsigned char));
+		s3c8_bytes = mt19937_ctr_crypt(s3c8_uncrypted, s3c8_crypted, s3c8_crypted_bytes, i);
+		if(!strncmp(s3c8_uncrypted+(s3c8_crypted_bytes-14), s3c8_plain, 14)) {
+			cracked_seed = i;
+			break;
+		}
+	}
+
+	printf("[s3c8] s3c8_seed = %d, s3c8_plain(%d) = '%s'\n", cracked_seed, s3c8_bytes, s3c8_uncrypted+(s3c8_bytes-14));
+
+	unsigned int s3c8_token = mt19937_generate_token();
+
+	printf("[s3c8] token = '%08x' %s time seeded!\n", s3c8_token, (mt19937_is_timeseeded(s3c8_token, 120) == 0) ? "is" : "is not" );
+	mt19937_srand(rand());
+	s3c8_token = mt19937_rand();
+	printf("[s3c8] token = '%08x' %s time seeded!\n", s3c8_token, (mt19937_is_timeseeded(s3c8_token, 120) == 0) ? "is" : "is not" );
 
 	return 0;
 }

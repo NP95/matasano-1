@@ -369,7 +369,7 @@ unsigned int aes_encryption_oracle(unsigned char *ciphertext, unsigned int *ciph
 	}
 
 	// set plaintext
-	for(i=0; i<header; i++) {
+	for(i=0; i<plaintext_len; i++) {
 		plaintext_mod[header+i] = plaintext[i];
 	}
 
