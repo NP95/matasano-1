@@ -7,6 +7,48 @@
 #include "../include/hex2base64.h"
 #include "../include/histogram.h"
 
+unsigned int aes_ctr_edit(unsigned char *edited_cipher, unsigned char *cipher, unsigned int cipher_len, unsigned char *key, unsigned int nonce, unsigned int offset, unsigned char *plaintext, unsigned int plaintext_len)
+{
+	if(offset >= cipher_len)
+		return 0;
+
+	unsigned int block_len = 16;
+	unsigned int block_num = plaintext_len / block_len + 1;
+	unsigned int start_block = offset / block_len;
+
+	unsigned int uncrypted_len = block_num * 16;
+	unsigned int uncrypted_bytes;
+	unsigned int decrypt_len = (plaintext_len > (cipher_len-block_len*start_block)) ? (cipher_len-block_len*start_block): uncrypted_len;
+
+	unsigned char uncrypted[uncrypted_len];
+
+	unsigned int i;
+
+	// decrypt blocks that need editing
+	uncrypted_bytes = aes_ctr_crypt(uncrypted, cipher+start_block*block_len, decrypt_len, key, nonce+start_block);
+
+	printf("Uncrypted(%d) = {\n%s\n}\n", offset, uncrypted);
+
+	// assemble new plaintext
+	memcpy(uncrypted+(offset-start_block*block_len), plaintext, plaintext_len*sizeof(unsigned char));
+
+	printf("New Plain(%d) = {\n%s\n}\n", offset, uncrypted);
+
+	// encrypt new plaintext
+	unsigned char edit_crypted[block_num*block_len];
+	unsigned int edit_crypted_len = 0;
+
+	edit_crypted_len = aes_ctr_crypt(edit_crypted, uncrypted, block_num*block_len, key, nonce+start_block);
+
+	// put edited ciphertext in place
+	memcpy(edited_cipher, cipher, cipher_len*sizeof(unsigned char));
+	memcpy(edited_cipher+start_block*block_len, edit_crypted, edit_crypted_len*sizeof(unsigned char));
+
+	unsigned int remaining_len = (plaintext_len > (cipher_len-offset)) ? plaintext_len : cipher_len-offset;
+
+	return remaining_len+offset;
+}
+
 int main(void)
 {
 	srand(time(NULL));
@@ -47,6 +89,7 @@ int main(void)
 	memset(s4c1_plain, 0, 1024*sizeof(unsigned char));
 	s4c1_plain_len = aes_ecb_decrypt(128, s4c1_plain, cipher, cipher_len, "YELLOW SUBMARINE");
 	s4c1_plain[s4c1_plain_len] = 0;
+	printf("[s4c1] plaintext = {\n%s\n}\n", s4c1_plain);
 
 	unsigned char s4c1_cipher_ctr[s4c1_plain_len];
 	unsigned int s4c1_cipher_ctr_len = 0;
@@ -58,7 +101,20 @@ int main(void)
 
 	s4c1_cipher_ctr_len = aes_ctr_crypt(s4c1_cipher_ctr, s4c1_plain, s4c1_plain_len, s4c1_key, s4c1_nonce);
 
-// 	printf("[s4c1] plaintext = {\n%s\n}\n", s4c1_plain);
+	unsigned char s4c1_edit_crypt[s4c1_cipher_ctr_len];
+	unsigned int s4c1_edit_crypt_len = 0;
+
+	s4c1_edit_crypt_len = aes_ctr_edit(s4c1_edit_crypt, s4c1_cipher_ctr, s4c1_cipher_ctr_len, s4c1_key, s4c1_nonce, 17, "test", 4);
+
+	printf("[s4c1] cipher_len = %d\n", s4c1_cipher_ctr_len);
+	printf("[s4c1] edit_crypt_len = %d\n", s4c1_edit_crypt_len);
+
+	unsigned char s4c1_edit_plain[s4c1_cipher_ctr_len];
+	unsigned int s4c1_edit_plain_len = 0;
+
+	s4c1_edit_plain_len = aes_ctr_crypt(s4c1_edit_plain, s4c1_edit_crypt, s4c1_edit_crypt_len, s4c1_key, s4c1_nonce);
+	s4c1_edit_plain[s4c1_edit_plain_len] = 0;
+	printf("[s4c1] edited plaintext = {\n%s\n}\n", s4c1_edit_plain);
 
 // 	unsigned char s2c6_plaintext[1024];
 // 	unsigned int s2c6_plaintext_len;
