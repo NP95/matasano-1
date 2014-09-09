@@ -23,6 +23,7 @@ unsigned int aes_ctr_crypt(unsigned char *crypted, unsigned char *uncrypted, uns
 void aes_random_key(unsigned char *key, unsigned int key_size);
 
 unsigned int aes_cbc_oracle(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_key, unsigned char *iv);
+unsigned int aes_ctr_oracle(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_key, unsigned int nonce);
 
 // oracle function for set2 challenge 4
 unsigned int aes_encryption_random(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_key);

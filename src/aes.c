@@ -531,3 +531,28 @@ unsigned int aes_cbc_oracle(unsigned char *ciphertext, unsigned char *plaintext,
 	return aes_cbc_encrypt(128, ciphertext, plaintext_pad, plaintext_pad_len, random_key, iv);
 }
 
+unsigned int aes_ctr_oracle(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_key, unsigned int nonce)
+{
+	unsigned char *header = "comment1=cooking%20MCs;userdata="; // 32
+	unsigned char *trailer = ";comment2=%20like%20a%20pound%20of%20bacon"; // 42
+
+	unsigned char plaintext_san[plaintext_len];
+
+	unsigned char complete_pt[plaintext_len+32+42];
+	unsigned int i;
+
+	// sanitize input
+	for(i=0; i<plaintext_len; i++) {
+		if(plaintext[i] == ';' || plaintext[i] == '=' )
+			plaintext_san[i] = '_';
+		else
+			plaintext_san[i] = plaintext[i];
+	}
+
+	// assemble complete plaintext string
+	memcpy(complete_pt, header, 32*sizeof(unsigned char));
+	memcpy(complete_pt+32, plaintext_san, plaintext_len*sizeof(unsigned char));
+	memcpy(complete_pt+32+plaintext_len, trailer, 42*sizeof(unsigned char));
+
+	return aes_ctr_crypt(ciphertext, complete_pt, 32+plaintext_len+42, random_key, nonce);
+}

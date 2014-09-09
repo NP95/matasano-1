@@ -52,19 +52,18 @@ unsigned int aes_ctr_edit(unsigned char *edited_cipher, unsigned char *cipher, u
 unsigned int aes_ctr_edit_crack(unsigned char *plaintext, unsigned char *cipher, unsigned int cipher_len, unsigned char *key, unsigned int nonce)
 {
 	unsigned char edit[cipher_len];
-	unsigned int edit_len;
 
-	unsigned int i, j, k;
+	unsigned int j, k;
 
 	// init plaintext, key
 	memset(plaintext, 0, cipher_len*sizeof(unsigned char));
 
-	for(k=0; k<cipher_len; k++) {
-		// vary plaintext byte
+	for(k=0; k<cipher_len-1; k++) {
+		// bf plaintext byte
 		for(j=0; j<256; j++) {
 			plaintext[k] = j;
 
-			edit_len = aes_ctr_edit(edit, cipher, cipher_len, key, nonce, 0, plaintext, k+1);
+			aes_ctr_edit(edit, cipher, cipher_len, key, nonce, 0, plaintext, k+1);
 
 			if(!memcmp(cipher, edit, k+1)) {
 // 				printf("hit %d, %c\n", k, j);
@@ -114,6 +113,8 @@ int main(void)
 	s4c1_plain_len = aes_ecb_decrypt(128, s4c1_plain, cipher, cipher_len, "YELLOW SUBMARINE");
 	s4c1_plain[s4c1_plain_len] = 0;
 
+	free(cipher);
+
 	unsigned char s4c1_cipher_ctr[s4c1_plain_len];
 	unsigned int s4c1_cipher_ctr_len = 0;
 
@@ -130,8 +131,8 @@ int main(void)
 	// we assume the aes_ctr_edit() function internally knows
 	// key and nonce, so we provide it here (but we don't know it actually)
 	s4c1_edit_crypt_len = aes_ctr_edit_crack(s4c1_edit_crypt, s4c1_cipher_ctr, s4c1_cipher_ctr_len, s4c1_key, s4c1_nonce);
-	s4c1_edit_crypt[s4c1_edit_crypt_len] = 0;
-	printf("[s4c1] recovered plain = '%s'\n", s4c1_edit_crypt);
+// 	s4c1_edit_crypt[s4c1_edit_crypt_len] = 0;
+	printf("[s4c1] recovered plain (%d) = '%s'\n", s4c1_edit_crypt_len, s4c1_edit_crypt);
 
 	// debug
 // 	s4c1_edit_crypt_len = aes_ctr_edit(s4c1_edit_crypt, s4c1_cipher_ctr, s4c1_cipher_ctr_len, s4c1_key, s4c1_nonce, 17, "test", 4);
@@ -146,7 +147,31 @@ int main(void)
 // 	s4c1_edit_plain[s4c1_edit_plain_len] = 0;
 // 	printf("[s4c1] edited plaintext = {\n%s\n}\n", s4c1_edit_plain);
 
-	free(cipher);
+	/** Set 4 CHallenge 2 **/
+	/** CTR BITFLIP ATTAX **/
+	unsigned char *s4c2_plain = "12345:admin<true"; // 16
+	unsigned char s4c2_key[16];
+	unsigned int s4c2_nonce = rand();
+	unsigned char s4c2_cipher_orig[128];
+	unsigned int s4c2_cipher_orig_len;
+	unsigned char s4c2_cipher_mod[128];
+	unsigned int s4c2_cipher_mod_len;
+
+	aes_random_key(s4c2_key, 16);
+	s4c2_cipher_orig_len = aes_ctr_oracle(s4c2_cipher_orig, s4c2_plain, 16, s4c2_key, s4c2_nonce);
+	
+	memcpy(s4c2_cipher_mod, s4c2_cipher_orig, s4c2_cipher_orig_len);
+	// flip bits in ciphertext block 2
+	// prepending our controlled buffer
+	s4c2_cipher_mod[37] ^= 0x01;
+	s4c2_cipher_mod[43] ^= 0x01;
+
+	// decrypt
+	unsigned char s4c2_dec[128];
+	unsigned int s4c2_dec_len;
+
+	s4c2_dec_len = aes_ctr_crypt(s4c2_dec, s4c2_cipher_mod, s4c2_cipher_orig_len, s4c2_key, s4c2_nonce);
+	printf("[s4c2] plain='%s'\n", s4c2_dec);
 
 	return 0;
 }
