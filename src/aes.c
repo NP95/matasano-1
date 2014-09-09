@@ -556,3 +556,32 @@ unsigned int aes_ctr_oracle(unsigned char *ciphertext, unsigned char *plaintext,
 
 	return aes_ctr_crypt(ciphertext, complete_pt, 32+plaintext_len+42, random_key, nonce);
 }
+
+unsigned int aes_cbc_decrypt_check(unsigned char *plaintext_error, unsigned char *cipher, unsigned int cipher_len, unsigned char *key, unsigned char *iv)
+{
+	unsigned char plain[cipher_len];
+	unsigned char plain_len = 0;
+
+	unsigned int i=0, error=0;
+
+	plain_len = aes_cbc_decrypt(128, plain, cipher, cipher_len, key, iv);
+
+	// check result for invalid ASCII
+	for(i=0; i<plain_len; i++) {
+		if((plain[i] < 32) || (plain[i] > 127))
+		{
+			error = 1;
+			break;
+		}
+	}
+
+	if(error==0) {
+		memset(plaintext_error, 0, cipher_len*sizeof(unsigned char));
+		return 0;
+	}
+	else {
+		memcpy(plaintext_error, plain, plain_len*sizeof(unsigned char));
+		plaintext_error[plain_len] = 0;
+		return plain_len;
+	}
+}

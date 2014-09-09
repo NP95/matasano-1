@@ -6,6 +6,7 @@
 #include "../include/pkcs.h"
 #include "../include/hex2base64.h"
 #include "../include/histogram.h"
+#include "../include/mac.h"
 
 unsigned int aes_ctr_edit(unsigned char *edited_cipher, unsigned char *cipher, unsigned int cipher_len, unsigned char *key, unsigned int nonce, unsigned int offset, unsigned char *plaintext, unsigned int plaintext_len)
 {
@@ -131,23 +132,10 @@ int main(void)
 	// we assume the aes_ctr_edit() function internally knows
 	// key and nonce, so we provide it here (but we don't know it actually)
 	s4c1_edit_crypt_len = aes_ctr_edit_crack(s4c1_edit_crypt, s4c1_cipher_ctr, s4c1_cipher_ctr_len, s4c1_key, s4c1_nonce);
-// 	s4c1_edit_crypt[s4c1_edit_crypt_len] = 0;
+	s4c1_edit_crypt[s4c1_edit_crypt_len] = 0;
 	printf("[s4c1] recovered plain (%d) = '%s'\n", s4c1_edit_crypt_len, s4c1_edit_crypt);
 
-	// debug
-// 	s4c1_edit_crypt_len = aes_ctr_edit(s4c1_edit_crypt, s4c1_cipher_ctr, s4c1_cipher_ctr_len, s4c1_key, s4c1_nonce, 17, "test", 4);
-// 
-// 	printf("[s4c1] cipher_len = %d\n", s4c1_cipher_ctr_len);
-// 	printf("[s4c1] edit_crypt_len = %d\n", s4c1_edit_crypt_len);
-// 
-// 	unsigned char s4c1_edit_plain[s4c1_cipher_ctr_len];
-// 	unsigned int s4c1_edit_plain_len = 0;
-// 
-// 	s4c1_edit_plain_len = aes_ctr_crypt(s4c1_edit_plain, s4c1_edit_crypt, s4c1_edit_crypt_len, s4c1_key, s4c1_nonce);
-// 	s4c1_edit_plain[s4c1_edit_plain_len] = 0;
-// 	printf("[s4c1] edited plaintext = {\n%s\n}\n", s4c1_edit_plain);
-
-	/** Set 4 CHallenge 2 **/
+	/** Set 4 Challenge 2 **/
 	/** CTR BITFLIP ATTAX **/
 	unsigned char *s4c2_plain = "12345:admin<true"; // 16
 	unsigned char s4c2_key[16];
@@ -173,5 +161,55 @@ int main(void)
 	s4c2_dec_len = aes_ctr_crypt(s4c2_dec, s4c2_cipher_mod, s4c2_cipher_orig_len, s4c2_key, s4c2_nonce);
 	printf("[s4c2] plain='%s'\n", s4c2_dec);
 
+	/** Set 4 Challenge 3 **/
+	/** CBC IV = KEY VULN **/
+	unsigned char *s4c3_plain = "12345:admin<true"; // 16
+	unsigned char s4c3_key[16];
+	unsigned char s4c3_cipher_orig[128];
+	unsigned int s4c3_cipher_orig_len;
+	unsigned char s4c3_cipher_mod[128];
+	unsigned int s4c3_cipher_mod_len;
+	
+	aes_random_key(s4c3_key, 16);
+
+	// create ciphertext C1, C2, C3
+	s4c3_cipher_orig_len = aes_cbc_oracle(s4c3_cipher_orig, s4c3_plain, 16, s4c3_key, s4c3_key);
+	
+	// modify ciphertext C1, C2, C3 -> C1, 0, C1
+	memset(s4c3_cipher_mod, 0, s4c3_cipher_orig_len);
+	memcpy(s4c3_cipher_mod, s4c3_cipher_orig, 16);
+	memcpy(s4c3_cipher_mod+32, s4c3_cipher_orig, 16);
+
+	// perform decrypt check
+	unsigned char s4c3_dec[128];
+	unsigned int s4c3_dec_len;
+
+	s4c3_dec_len = aes_cbc_decrypt_check(s4c3_dec, s4c3_cipher_mod, s4c3_cipher_orig_len, s4c3_key, s4c3_key);
+
+	// error detected?
+	if(s4c3_dec_len != 0) {
+		unsigned char *rec_key;
+		fixed_xor(&rec_key, s4c3_dec, s4c3_dec+32, 16);
+
+		unsigned char *key_hex;
+		unsigned int key_hex_len = 0;
+		unsigned char *rec_key_hex;
+		unsigned int rec_key_hex_len = 0;
+
+		key_hex_len = hex_encode(&key_hex, s4c3_key, 16);
+		key_hex[key_hex_len] = 0;
+		rec_key_hex_len = hex_encode(&rec_key_hex, rec_key, 16);
+		rec_key_hex[rec_key_hex_len] = 0;
+
+		printf("[s4c3] recovered key='%s', random key was: '%s'\n", rec_key_hex, key_hex);
+		free(rec_key);
+		free(key_hex);
+		free(rec_key_hex);
+	}
+	else
+		printf("[s4c3] No ASCII error detected!\n");
+
+	/**        Set 4 Challenge 4       **/
+	/** SHA-1 KEYED MAC IMPLEMENTATION **/
 	return 0;
 }

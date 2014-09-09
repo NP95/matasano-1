@@ -32,6 +32,9 @@ unsigned int aes_encryption_random2(unsigned char *ciphertext, unsigned char *pl
 
 unsigned int aes_encryption_oracle(unsigned char *ciphertext, unsigned int *ciphertext_len, unsigned char *plaintext, unsigned int plaintext_len);
 
+// CBC checking function for set4 challenge 3 (#27)
+unsigned int aes_cbc_decrypt_check(unsigned char *plaintext_error, unsigned char *cipher, unsigned int cipher_len, unsigned char *key, unsigned char *iv);
+
 // cracking function for set2 challenge 4
 unsigned int aes_ecb_partial_crack(unsigned char *unknown_plaintext, unsigned int *unknown_plaintext_length, unsigned int *key_length);
 // cracking function for set2 challenge 6
