@@ -9,8 +9,8 @@ set2:  src/aes.o src/get.o src/hamming.o src/histogram.o src/hex2base64.o src/xo
 set3:  src/aes.o src/histogram.o src/hamming.o src/hex2base64.o src/xor.o src/hex_coder.o src/pkcs.o src/rrand.o set3/main.o
 	gcc -ggdb src/histogram.c src/hamming.c src/hex2base64.c src/xor.c src/aes.c src/hex_coder.c src/pkcs.c src/rrand.c set3/main.c -lm -lcrypto -o set3/main.out
 
-set4:  src/aes.o src/histogram.o src/hamming.o src/hex2base64.o src/xor.o src/hex_coder.o src/pkcs.o src/rrand.o set4/main.o
-	gcc -ggdb src/histogram.c src/hamming.c src/hex2base64.c src/xor.c src/aes.c src/hex_coder.c src/pkcs.c src/rrand.c set4/main.c -lm -lcrypto -o set4/main.out
+set4:  src/sha1.o src/mac.o src/aes.o src/histogram.o src/hamming.o src/hex2base64.o src/xor.o src/hex_coder.o src/pkcs.o src/rrand.o set4/main.o
+	gcc -ggdb src/sha1.c src/mac.c src/histogram.c src/hamming.c src/hex2base64.c src/xor.c src/aes.c src/hex_coder.c src/pkcs.c src/rrand.c set4/main.c -lm -lcrypto -o set4/main.out
 
 clean:
 	rm -rf ./src/*.o

@@ -211,5 +211,33 @@ int main(void)
 
 	/**        Set 4 Challenge 4       **/
 	/** SHA-1 KEYED MAC IMPLEMENTATION **/
+	unsigned int mac[5];
+
+	sha1_secret_prefix_mac(mac, "Hello World", 11, "YELLOW SUBMARINE", 16);
+
+	printf("[s4c4] sha1_mac = ");
+	for(i=0; i<5; i++) {
+		printf("%08x", mac[i]);
+	}
+	printf("\n");
+
+	if(sha1_secret_prefix_mac_auth(mac, "Hello World", 11, "YELLOW SUBMARINE", 16) == 0)
+		printf("[s4c4] sha1 secret MAC successfully authenticated!\n");
+	else
+		printf("[s4c4] sha1 secret MAC *NOT* authenticated!\n");
+
+	sha1_secret_prefix_mac(mac, "Hello World", 11, "YELLOW_SUBMARINE", 16);
+
+	printf("[s4c4] sha1_mac = ");
+	for(i=0; i<5; i++) {
+		printf("%08x", mac[i]);
+	}
+	printf("\n");
+
+	if(sha1_secret_prefix_mac_auth(mac, "Hello World", 11, "YELLOW SUBMARINE", 16) == 0)
+		printf("[s4c4] sha1 secret MAC successfully authenticated!\n");
+	else
+		printf("[s4c4] sha1 secret MAC *NOT* authenticated!\n");
+
 	return 0;
 }
