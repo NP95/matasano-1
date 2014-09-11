@@ -239,5 +239,77 @@ int main(void)
 	else
 		printf("[s4c4] sha1 secret MAC *NOT* authenticated!\n");
 
+	/**   Set 4 Challenge 5    **/
+	/** SHA-1 KEYED MAC ATTACK **/
+	unsigned char s4c5_pad[72];
+	unsigned int s4c5_pad_len = 0;
+	s4c5_pad_len = sha1_generate_padding(s4c5_pad, 77);
+
+	// test padding function
+	printf("[s4c5] pad = ");
+	for(i=0; i<s4c5_pad_len; i++) {
+		printf("%02x", s4c5_pad[i]);
+	}
+	printf("\n");
+
+	// attack
+	unsigned char *s4c5_msg = "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon"; // 77
+	unsigned int s4c5_msg_len = strlen(s4c5_msg);
+
+	unsigned int s4c5_msg_mac[5];
+
+	unsigned char *s4c5_msg_forged;
+	unsigned int s4c5_msg_forged_len;
+	unsigned int s4c5_msg_mac_forged[5];
+
+	unsigned int j;
+	// calc MAC
+	sha1_secret_prefix_mac(s4c5_msg_mac, s4c5_msg, s4c5_msg_len, "YELLOW SUBMARINE", 16);
+	printf("[s4c4] msg_mac = ");
+	for(i=0; i<5; i++) {
+		printf("%08x", s4c5_msg_mac[i]);
+	}
+	printf("\n");
+
+	const unsigned char *forge_str = ";admin=true"; // 11
+
+	// guess keylength for glue-padding
+// 	for(i=0; i<64; i++) {
+	for(i=0; i<64; i++) {
+		memset(s4c5_pad, 0, 72*sizeof(unsigned char));
+		s4c5_pad_len = sha1_generate_padding(s4c5_pad, s4c5_msg_len+i);
+
+// 		printf("[s4c5] pad_len = %d\n", s4c5_pad_len);
+// 		printf("[s4c5] pad = ");
+// 		for(j=0; j<s4c5_pad_len; j++) {
+// 			printf("%02x", s4c5_pad[j]);
+// 		}
+// 		printf("\n");
+
+
+		s4c5_msg_forged_len = 11 + s4c5_pad_len;
+		s4c5_msg_forged = malloc((s4c5_msg_forged_len+1)*sizeof(unsigned char));
+		memset(s4c5_msg_forged, 0, (s4c5_msg_forged_len+1)*sizeof(unsigned char));
+
+		memcpy(s4c5_msg_forged, s4c5_pad, s4c5_pad_len*sizeof(unsigned char));
+		memcpy(s4c5_msg_forged+s4c5_pad_len, forge_str, 11*sizeof(unsigned char));
+// 		printf("[s4c5] %s\n", s4c5_msg_forged);
+// 		printf("[s4c5] forged_len = %d (%d)\n", s4c5_msg_forged_len, s4c5_pad_len);
+		sha1_secret_prefix_mac_forge(s4c5_msg_mac_forged, s4c5_msg_forged, s4c5_msg_forged_len, s4c5_msg_mac);
+// 		printf("[s4c4] forged_msg_mac = ");
+// 		for(j=0; j<5; j++) {
+// 			printf("%08x", s4c5_msg_mac_forged[j]);
+// 		}
+// 		printf("\n");
+
+		if(sha1_secret_prefix_mac_auth(s4c5_msg_mac_forged, "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon;admin=true", 88, "YELLOW SUBMARINE", 16) == 0) {
+			printf("[s4c4] *FORGED* sha1 secret MAC successfully authenticated!\n");
+			free(s4c5_msg_forged);
+			break;
+		}
+
+		free(s4c5_msg_forged);
+	}
+
 	return 0;
 }

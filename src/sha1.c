@@ -84,6 +84,21 @@ void SHA1Reset(SHA1Context *context)
     context->Corrupted  = 0;
 }
 
+void SHA1Reset_Mod(SHA1Context *context, unsigned int *init)
+{
+    context->Length_Low             = 0;
+    context->Length_High            = 0;
+    context->Message_Block_Index    = 0;
+
+    context->Message_Digest[0]      = init[0];
+    context->Message_Digest[1]      = init[1];
+    context->Message_Digest[2]      = init[2];
+    context->Message_Digest[3]      = init[3];
+    context->Message_Digest[4]      = init[4];
+
+    context->Computed   = 0;
+    context->Corrupted  = 0;
+}
 /*  
  *  SHA1Result
  *
@@ -369,3 +384,4 @@ void SHA1PadMessage(SHA1Context *context)
 
     SHA1ProcessMessageBlock(context);
 }
+
