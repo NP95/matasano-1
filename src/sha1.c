@@ -119,18 +119,31 @@ void SHA1Reset_Mod(SHA1Context *context, unsigned int *init)
 int SHA1Result(SHA1Context *context)
 {
 
-    if (context->Corrupted)
-    {
-        return 0;
-    }
+	if (context->Corrupted) {
+		return 0;
+	}
 
-    if (!context->Computed)
-    {
-        SHA1PadMessage(context);
-        context->Computed = 1;
-    }
+	if (!context->Computed) {
+		SHA1PadMessage(context);
+		context->Computed = 1;
+	}
 
-    return 1;
+	return 1;
+}
+
+int SHA1Result_Forged(SHA1Context *context)
+{
+	if (context->Corrupted) {
+		return 0;
+	}
+
+	if (!context->Computed) {
+		// do not pad forged extension
+		// we added the padding ourselves
+		context->Computed = 1;
+	}
+
+	return 1;
 }
 
 /*  
@@ -155,48 +168,40 @@ int SHA1Result(SHA1Context *context)
  *  Comments:
  *
  */
-void SHA1Input(     SHA1Context         *context,
-                    const unsigned char *message_array,
-                    unsigned            length)
+void SHA1Input(SHA1Context *context, const unsigned char *message_array, unsigned length)
 {
-    if (!length)
-    {
-        return;
-    }
+	if (!length) {
+		return;
+	}
 
-    if (context->Computed || context->Corrupted)
-    {
-        context->Corrupted = 1;
-        return;
-    }
+	if (context->Computed || context->Corrupted) {
+		context->Corrupted = 1;
+		return;
+	}
 
-    while(length-- && !context->Corrupted)
-    {
-        context->Message_Block[context->Message_Block_Index++] =
-                                                (*message_array & 0xFF);
+	while(length-- && !context->Corrupted) {
+		context->Message_Block[context->Message_Block_Index++] = (*message_array & 0xFF);
 
-        context->Length_Low += 8;
-        /* Force it to 32 bits */
-        context->Length_Low &= 0xFFFFFFFF;
-        if (context->Length_Low == 0)
-        {
-            context->Length_High++;
-            /* Force it to 32 bits */
-            context->Length_High &= 0xFFFFFFFF;
-            if (context->Length_High == 0)
-            {
-                /* Message is too long */
-                context->Corrupted = 1;
-            }
-        }
+		context->Length_Low += 8;
+		/* Force it to 32 bits */
+		context->Length_Low &= 0xFFFFFFFF;
+		if (context->Length_Low == 0) {
+			context->Length_High++;
+			/* Force it to 32 bits */
+			context->Length_High &= 0xFFFFFFFF;
+			if (context->Length_High == 0) {
+			/* Message is too long */
+			context->Corrupted = 1;
+			}
+		}
 
-        if (context->Message_Block_Index == 64)
-        {
-            SHA1ProcessMessageBlock(context);
-        }
+		if (context->Message_Block_Index == 64) {
+			SHA1ProcessMessageBlock(context);
+		}
 
-        message_array++;
-    }
+		message_array++;
+	}
+// 	printf("\n");
 }
 
 /*  

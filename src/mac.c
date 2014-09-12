@@ -1,5 +1,4 @@
 #include <math.h>
-#include <stdio.h>
 #include <string.h>
 #include "../include/mac.h"
 
@@ -8,13 +7,14 @@ unsigned int sha1_secret_prefix_mac(unsigned int *mac, unsigned char *msg, unsig
 	SHA1Context sc;
 	SHA1Reset(&sc);
 
-	unsigned char mac_input[key_len+msg_len];
+	unsigned int input_len = key_len+msg_len;
+	unsigned char mac_input[input_len];
 
-	memset(mac_input, 0, (key_len+msg_len)*sizeof(unsigned char));
+	memset(mac_input, 0, input_len*sizeof(unsigned char));
 	memcpy(mac_input, key, key_len*sizeof(unsigned char));
 	memcpy(mac_input+key_len, msg, msg_len*sizeof(unsigned char));
 
-	SHA1Input(&sc, mac_input, key_len+msg_len);
+	SHA1Input(&sc, mac_input, input_len);
 
 	if(SHA1Result(&sc) == 1) {
 		memcpy(mac, sc.Message_Digest, 5*sizeof(unsigned int));
@@ -28,29 +28,10 @@ unsigned int sha1_secret_prefix_mac_forge(unsigned int *mac, unsigned char *msg,
 {
 	SHA1Context sc;
 	SHA1Reset_Mod(&sc, orig_hash);
-// 	SHA1Reset(&sc);
 
-	// debug
-	unsigned int i;
-// 	printf("[s4c5] forge_msg(%d) = '", msg_len);
-// 	for(i=0; i<msg_len; i++) {
-// 		printf("%02x", msg[i]);
-// 	}
-// 	printf("'\n");
+	SHA1Input(&sc, msg, msg_len);
 
-	printf("[s4c4] orig_mac = ");
-	for(i=0; i<5; i++) {
-		printf("%08x", orig_hash[i]);
-	}
-	printf("\n");
-
-	unsigned char mac_input[msg_len];
-
-	memcpy(mac_input, msg, msg_len*sizeof(unsigned char));
-
-	SHA1Input(&sc, mac_input, msg_len);
-
-	if(SHA1Result(&sc) == 1) {
+	if(SHA1Result_Forged(&sc) == 1) {
 		memcpy(mac, sc.Message_Digest, 5*sizeof(unsigned int));
 		return 160;
 	}
@@ -88,8 +69,6 @@ unsigned int sha1_generate_padding(unsigned char *padding, unsigned long message
 	memset(padding, 0, padding_len*sizeof(unsigned char));
 	padding[0] = 0x80;
 
-// 	printf("[s4c5] msg_len = %08x\n", message_len*8);
-	
 	for(i=0; i<8; i++) {
 		padding[padding_len-1-i] = ((message_len*8) >> i*8) & 0xFF;
 	}
