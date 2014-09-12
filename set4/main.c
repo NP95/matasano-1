@@ -338,5 +338,84 @@ int main(void)
 		free(forge_str);
 	}
 	
+	/**  Set 4 Challenge 6  **/
+	/** MD4 KEYED MAC ATTAX **/
+	unsigned char s4c6_md4_test[16];
+	md4_secret_prefix_mac(s4c6_md4_test, "Hello World!", 12, "YELLOW SUBMARINE", 16);
+	printf("[s4c6] test_mac = ");
+	for(i=0; i<16; i++) {
+		printf("%02x", s4c6_md4_test[i]);
+	}
+	printf("\n");
+
+	if(md4_secret_prefix_mac_auth(s4c6_md4_test, "Hello World!", 12, "YELLOW SUBMARINE", 16) == 0)
+		printf("[s4c6] md4 secret MAC successfully authenticated!\n");
+	else
+		printf("[s4c6] md4 secret MAC *NOT* authenticated!\n");
+
+	unsigned char s4c6_orig_mac[16];
+	unsigned char s4c6_forged_mac[16];
+
+	// calc orig MAC
+	md4_secret_prefix_mac(s4c6_orig_mac, s4c5_msg, s4c5_msg_len, "YELLOW SUBMARINE", 16);
+	printf("[s4c6] orig_mac = ");
+	for(i=0; i<16; i++) {
+		printf("%02x", s4c6_orig_mac[i]);
+	}
+	printf("\n");
+
+	//              MSG LEN      +  PAD_LEN                   +  EXTENSION
+	forge_str_len = s4c5_msg_len + (64 - (s4c5_msg_len % 64)) + forged_ext_len;
+// 	printf("[s4c5] forge_str_len = %d\n", forge_str_len);
+	
+	// generate extension padding
+	ext_pad_len = md4_generate_padding(ext_pad, forge_str_len);
+
+	forge_complete = malloc((forged_ext_len+ext_pad_len)*sizeof(unsigned char));
+	memcpy(forge_complete, forged_ext, forged_ext_len*sizeof(unsigned char));
+	memcpy(forge_complete+forged_ext_len, ext_pad, ext_pad_len*sizeof(unsigned char));
+
+	// calc MAC for message with forged extension
+	// using the original MAC as initial values for SHA-1
+	md4_secret_prefix_mac_forge(s4c6_forged_mac, forge_complete, forged_ext_len+ext_pad_len, s4c6_orig_mac);
+
+	free(forge_complete);
+
+	printf("[s4c6] forged_mac = ");
+	for(j=0; j<16; j++) {
+		printf("%02x", s4c6_forged_mac[j]);
+	}
+	printf("\n");
+
+	// generate string that leads to forged MAC
+	// here we need to guess keylength for correct glue padding
+	// brute force keylength up to 1024:
+	for(i=0; i<1024; i++) {
+		// generate glue padding
+		pad_len = md4_generate_padding(pad, s4c5_msg_len+i);
+
+		// generate string
+// 		printf("[s4c5] forge_str_len = %d ?= 123\n", forge_str_len);
+		forge_str_len = s4c5_msg_len + pad_len + forged_ext_len;
+		forge_str = (unsigned char *) malloc(forge_str_len*sizeof(unsigned char));
+
+		memcpy(forge_str, s4c5_msg, s4c5_msg_len*sizeof(unsigned char));
+		memcpy(forge_str+s4c5_msg_len, pad, pad_len*sizeof(unsigned char));
+		memcpy(forge_str+s4c5_msg_len+pad_len, forged_ext, forged_ext_len*sizeof(unsigned char));
+
+// 		printf("[s4c5] forge_str = ");
+// 		for(j=0; j<forge_str_len; j++) {
+// 			printf("%02x", forge_str[j]);
+// 		}
+// 		printf("\n");
+
+		if(md4_secret_prefix_mac_auth(s4c6_forged_mac, forge_str, forge_str_len, "YELLOW SUBMARINE", 16) == 0) {
+			printf("[s4c6] MAC for extendend message SUCCESSFULLY forged! Keylength = %d\n", i);
+			break;
+			free(forge_str);
+		}
+		free(forge_str);
+	}
+	
 	return 0;
 }
