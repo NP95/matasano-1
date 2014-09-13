@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../include/httpget.h"
 #include "../include/aes.h"
 #include "../include/pkcs.h"
 #include "../include/hex2base64.h"
@@ -417,5 +418,16 @@ int main(void)
 		free(forge_str);
 	}
 	
+	/**    Set 4 Challenge 7    **/
+	/** SHA1-HMAC TIMING ATTACK **/
+	unsigned int resp_len;
+	unsigned char resp[2048];
+	resp_len = http_request(resp, "localhost", "files?utf8=%E2%9C%93&file%5Bfilename%5D=report.pdf&file%5Bsignature%5D=924d167eb3b72810e31dcc9e4f3c5991738e7391&commit=Save+File");
+
+	if(resp_len > 0) {
+		resp[resp_len] = 0;
+		printf("[s4c7] server response:\n");
+		printf("%s", resp);
+	}
 	return 0;
 }
