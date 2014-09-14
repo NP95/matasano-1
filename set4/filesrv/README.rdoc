@@ -1,28 +1,14 @@
 == README
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+The 'filesrv' http file server is needed for challenges 31 and 32 for
+set 4.
+In order to start the server on localhost, port 3000 run:
 
-Things you may want to cover:
+$ bin/rails server
 
-* Ruby version
+Now you can start 'main.out' in set4 sub-directory, which will perform
+the SHA1-HMAC timing attacks against the insecure compare of the file
+server application.
 
-* System dependencies
+The server code is located in 'app/controllers/file_controller.rb'.
 
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
-
-
-Please feel free to use a different markup language if you do not plan to run
-<tt>rake doc:app</tt>.
