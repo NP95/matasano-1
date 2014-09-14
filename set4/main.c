@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "../include/httpget.h"
 #include "../include/aes.h"
@@ -132,9 +133,9 @@ int main(void)
 
 	// we assume the aes_ctr_edit() function internally knows
 	// key and nonce, so we provide it here (but we don't know it actually)
-	s4c1_edit_crypt_len = aes_ctr_edit_crack(s4c1_edit_crypt, s4c1_cipher_ctr, s4c1_cipher_ctr_len, s4c1_key, s4c1_nonce);
-	s4c1_edit_crypt[s4c1_edit_crypt_len] = 0;
-	printf("[s4c1] recovered plain (%d) = '%s'\n", s4c1_edit_crypt_len, s4c1_edit_crypt);
+// 	s4c1_edit_crypt_len = aes_ctr_edit_crack(s4c1_edit_crypt, s4c1_cipher_ctr, s4c1_cipher_ctr_len, s4c1_key, s4c1_nonce);
+// 	s4c1_edit_crypt[s4c1_edit_crypt_len] = 0;
+// 	printf("[s4c1] recovered plain (%d) = '%s'\n", s4c1_edit_crypt_len, s4c1_edit_crypt);
 
 	/** Set 4 Challenge 2 **/
 	/** CTR BITFLIP ATTAX **/
@@ -420,14 +421,111 @@ int main(void)
 	
 	/**    Set 4 Challenge 7    **/
 	/** SHA1-HMAC TIMING ATTACK **/
-	unsigned int resp_len;
+	int resp_len=0;
 	unsigned char resp[2048];
-	resp_len = http_request(resp, "localhost", "files?utf8=%E2%9C%93&file%5Bfilename%5D=report.pdf&file%5Bsignature%5D=924d167eb3b72810e31dcc9e4f3c5991738e7391&commit=Save+File");
 
-	if(resp_len > 0) {
-		resp[resp_len] = 0;
-		printf("[s4c7] server response:\n");
-		printf("%s", resp);
+	// complete param:
+	// param0 | filename | param1 | signature | param2
+	unsigned char *param0 = "files?utf8=%E2%9C%93&file%5Bfilename%5D=";
+	unsigned int param0_len = strlen(param0);
+	unsigned char *param1 = "&file%5Bsignature%5D=";
+	unsigned int param1_len = strlen(param1);
+	unsigned char *param2 = "&commit=Save+File";
+	unsigned int param2_len = strlen(param2);
+
+	unsigned char *filename = "report.pdf";
+	unsigned int filename_len = strlen(filename);
+
+	unsigned char hmac[20];
+	unsigned char hmac_str[40];
+
+	unsigned int req_len = param0_len+filename_len+param1_len+40+param2_len+1;
+	unsigned char req[req_len];
+
+	printf("[s4c7] Connecting to server...\n");
+	memset(hmac, 0, 20*sizeof(unsigned char));
+
+	unsigned int error=0;
+	unsigned int k;
+	unsigned long resp_time;
+	// tune this parameter according to the server response
+	// times (* not working reliably)
+	//        server    |
+	//    compare delay | base_time
+	//    --------------+----------
+	//         50 ms    |   100000
+	//         40 ms    |    81000
+	//    *    30 ms    |    63000
+	//    *    20 ms    |    45000
+	//    *    10 ms    |    28000
+	unsigned int base_time = 81000;
+
+	// iterate over HMAC bytes
+// 	for(i=0; i<1; i++) {
+	for(i=0; i<20; i++) {
+		// brute force byte
+		for(j=0; j<256; j++) {
+			// 'calc' HMAC
+			hmac[i] = j;
+
+			for(k=0; k<20; k++)
+				sprintf(hmac_str+2*k, "%02x", hmac[k]);
+			hmac_str[40] = 0;
+
+			// build request string
+			memset(req, 0, req_len*sizeof(unsigned char));
+			memcpy(req, param0, param0_len*sizeof(unsigned char));
+			memcpy(req+param0_len, filename, filename_len*sizeof(unsigned char));
+			memcpy(req+param0_len+filename_len, param1, param1_len*sizeof(unsigned char));
+			memcpy(req+param0_len+filename_len+param1_len, hmac_str, 40*sizeof(unsigned char));
+			memcpy(req+param0_len+filename_len+param1_len+40, param2, param2_len*sizeof(unsigned char));
+
+			// start timer
+			struct timeval tstart;
+			gettimeofday(&tstart, NULL);
+
+			resp_len = http_request(resp, "localhost", req);
+
+			// stop timer
+			struct timeval tstop;
+			gettimeofday(&tstop, NULL);
+
+			struct timeval tdiff;
+
+			timersub(&tstop, &tstart, &tdiff);
+			resp_time = (tdiff.tv_sec * (uint64_t)1000000) + tdiff.tv_usec;
+
+// 			usleep(500);
+// 			printf("[s4c7] Response time: %2d s %8d us >? %d (%s)\n", tdiff.tv_sec, tdiff.tv_usec, base_time, hmac_str);
+			if(resp_time > (i+1)*base_time) {
+				printf("[s4c7] Response time: %2d s %8d us (%s)\n", tdiff.tv_sec, tdiff.tv_usec, hmac_str);
+				break;
+			}
+
+			if(resp_len < 0) {
+				printf("[s4c7] Connection failed! You started webrick in 'set4/filesrv/', right?\n[s4c7] No? Then do so:\n[s4c7] $ cd filesrv/\n[s4c7] $ bin/rails server\n[s4c7] Now try again...\n");
+				error=1;
+				break;
+			}
+		}
+
+		if(error==1)
+			break;
 	}
+
+	// perform final check
+	resp_len = http_request(resp, "localhost", req);
+
+	// 92 4d 16 7e b3 b7 28 10 e3 1d cc 9e 4f 3c 59 91 73 8e 73 91
+	if(resp_len >= 0) {
+		resp[resp_len] = 0;
+		if(strstr(resp, "+200")!=NULL)
+			printf("[s4c7] server response: +200! SHA1-HMAC successfully cracked!\n[s4c7] SHA1-HMAC: %s\n", hmac_str);
+		else
+			printf("[s4c7] server response: +500! Sorry, SHA1-HMAC cracking attempt failed!\n");
+	} else {
+		printf("[s4c7] Connection failed! You started webrick in 'set4/filesrv/', right?\n[s4c7] No? Then do so:\n[s4c7] $ cd filesrv/\n[s4c7] $ bin/rails server\n[s4c7] Now try again...\n");
+	}
+
 	return 0;
 }

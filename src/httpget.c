@@ -1,6 +1,6 @@
 #include "../include/httpget.h"
 
-unsigned int http_request(unsigned char *response, unsigned char *host, unsigned char *page)
+int http_request(unsigned char *response, unsigned char *host, unsigned char *page)
 {
   struct sockaddr_in *remote;
   int sock;
@@ -10,7 +10,8 @@ unsigned int http_request(unsigned char *response, unsigned char *host, unsigned
   char buf[BUFSIZ+1];
 
   sock = create_tcp_socket();
-  ip = get_ip(host);
+  if((ip = get_ip(host))==NULL)
+	  return -1;
 //   fprintf(stderr, "IP is %s\n", ip); 
   remote = (struct sockaddr_in *)malloc(sizeof(struct sockaddr_in *));
   remote->sin_family = AF_INET;
@@ -18,17 +19,16 @@ unsigned int http_request(unsigned char *response, unsigned char *host, unsigned
   if(tmpres < 0)
   {
     perror("Can't set remote->sin_addr.s_addr");
-    exit(1);
+    return -1;
   }else if(tmpres == 0)
   {
     fprintf(stderr, "%s is not a valid IP address\n", ip);
-    exit(1);
+    return -1;
   }
   remote->sin_port = htons(PORT);
 
   if(connect(sock, (struct sockaddr *)remote, sizeof(struct sockaddr)) < 0){
-    perror("Could not connect");
-    exit(1);
+	return -1;
   }
   get = build_get_query(host, page);
 //   fprintf(stderr, "Query is:\n<<START>>\n%s<<END>>\n", get);
@@ -39,8 +39,10 @@ unsigned int http_request(unsigned char *response, unsigned char *host, unsigned
   { 
     tmpres = send(sock, get+sent, strlen(get)-sent, 0);
     if(tmpres == -1){
-      perror("Can't send query");
-      exit(1);
+	free(ip);
+	free(remote);
+	close(sock);
+	return -1;
     }
     sent += tmpres;
   }
@@ -71,11 +73,10 @@ int create_tcp_socket()
   int sock;
   if((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
     perror("Can't create TCP socket");
-    exit(1);
+    return -1;
   }
   return sock;
 }
-
 
 char *get_ip(char *host)
 {
@@ -86,12 +87,14 @@ char *get_ip(char *host)
   if((hent = gethostbyname(host)) == NULL)
   {
     herror("Can't get IP");
-    exit(1);
+    free(ip);
+    return NULL;
   }
   if(inet_ntop(AF_INET, (void *)hent->h_addr_list[0], ip, iplen) == NULL)
   {
     perror("Can't resolve host");
-    exit(1);
+    free(ip);
+    return NULL;
   }
   return ip;
 }

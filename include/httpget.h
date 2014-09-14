@@ -7,10 +7,11 @@
 #include <stdlib.h>
 #include <netdb.h>
 #include <string.h>
-int create_tcp_socket();
+
+int http_request(unsigned char *response, unsigned char *host, unsigned char *page);
+int create_tcp_socket(void);
 char *get_ip(char *host);
 char *build_get_query(char *host, char *page);
-void usage();
 
 #define HOST "localhost"
 #define PAGE "/"

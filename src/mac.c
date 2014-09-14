@@ -70,6 +70,20 @@ unsigned int md4_generate_padding(unsigned char *padding, unsigned long message_
 	return pad_len;
 }
 
+unsigned int sha1_hmac(unsigned int *hmac, unsigned char *msg, unsigned int msg_len, unsigned char *key, unsigned int key_len)
+{
+	// HMAC = H(key ^ opad, H(key ^ ipad, msg))
+	// ipad = 0x36
+	// opad = 0x5c
+	const unsigned int hash_blocklen = 64;
+	unsigned int hmac_key[5];
+
+	// prepare key
+	if(key_len > hash_blocklen) {
+		sha1_secret_prefix_mac(hmac_key, key, key_len, NULL, 0);
+	}
+}
+
 unsigned int sha1_secret_prefix_mac(unsigned int *mac, unsigned char *msg, unsigned int msg_len, unsigned char *key, unsigned int key_len)
 {
 	SHA1Context sc;
@@ -79,8 +93,10 @@ unsigned int sha1_secret_prefix_mac(unsigned int *mac, unsigned char *msg, unsig
 	unsigned char mac_input[input_len];
 
 	memset(mac_input, 0, input_len*sizeof(unsigned char));
-	memcpy(mac_input, key, key_len*sizeof(unsigned char));
-	memcpy(mac_input+key_len, msg, msg_len*sizeof(unsigned char));
+	if(key!=NULL)
+		memcpy(mac_input, key, key_len*sizeof(unsigned char));
+	if(msg!=NULL)
+		memcpy(mac_input+key_len, msg, msg_len*sizeof(unsigned char));
 
 	SHA1Input(&sc, mac_input, input_len);
 
