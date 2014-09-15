@@ -23,7 +23,10 @@ class FilesController < ApplicationController
 			else
 				break
 			end
-			sleep(0.040)
+			# 40 ms artificial delay
+			#sleep(0.040)
+			# 5 ms artificial delay (breaks basic timing attack approach
+			sleep(0.005)
 		end
 		proc_time = Time.now() - start_time
 

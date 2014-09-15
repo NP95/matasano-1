@@ -442,12 +442,13 @@ int main(void)
 	unsigned int req_len = param0_len+filename_len+param1_len+40+param2_len+1;
 	unsigned char req[req_len];
 
-	printf("[s4c7] Connecting to server...\n");
+	printf("[s4c7/8] Connecting to server...\n");
 	memset(hmac, 0, 20*sizeof(unsigned char));
 
 	unsigned int error=0;
 	unsigned int k;
-	unsigned long resp_time;
+	unsigned long resp_time=0;
+	unsigned long avg_resp_time=17000;
 	// tune this parameter according to the server response
 	// times (* not working reliably)
 	//        server    |
@@ -458,11 +459,17 @@ int main(void)
 	//    *    30 ms    |    63000
 	//    *    20 ms    |    45000
 	//    *    10 ms    |    28000
-	unsigned int base_time = 81000;
+	// unsigned int base_time = 81000;
+	unsigned long base_time = 17000;
+	unsigned long run_avg[256];
+	unsigned long cmp_time=16000;
+	unsigned long cnt=1;
 
 	// iterate over HMAC bytes
 // 	for(i=0; i<1; i++) {
 	for(i=0; i<20; i++) {
+// 		cmp_time = (cnt > 1) ? (cmp_time*(cnt-1)+resp_time)/cnt: cmp_time + 0.7*resp_time;
+// 		cnt++;
 		// brute force byte
 		for(j=0; j<256; j++) {
 			// 'calc' HMAC
@@ -480,34 +487,52 @@ int main(void)
 			memcpy(req+param0_len+filename_len+param1_len, hmac_str, 40*sizeof(unsigned char));
 			memcpy(req+param0_len+filename_len+param1_len+40, param2, param2_len*sizeof(unsigned char));
 
-			// start timer
 			struct timeval tstart;
-			gettimeofday(&tstart, NULL);
-
-			resp_len = http_request(resp, "localhost", req);
-
-			// stop timer
 			struct timeval tstop;
-			gettimeofday(&tstop, NULL);
-
 			struct timeval tdiff;
+			run_avg[j] = 0;
 
-			timersub(&tstop, &tstart, &tdiff);
-			resp_time = (tdiff.tv_sec * (uint64_t)1000000) + tdiff.tv_usec;
+			for(k=0; k<20; k++) {
+				// start timer
+				gettimeofday(&tstart, NULL);
+				resp_len = http_request(resp, "localhost", req);
+				// stop timer
+				gettimeofday(&tstop, NULL);
+
+				timersub(&tstop, &tstart, &tdiff);
+				resp_time = (tdiff.tv_sec * (uint64_t)1000000) + tdiff.tv_usec;
+
+				run_avg[j] += resp_time;
+// 				usleep(500);
+			}
+
+			resp_time = run_avg[j] / 20;
+			if(j==0)
+				avg_resp_time = resp_time;
+			else
+				avg_resp_time = (avg_resp_time * j + resp_time)/(j+1);
 
 // 			usleep(500);
-// 			printf("[s4c7] Response time: %2d s %8d us >? %d (%s)\n", tdiff.tv_sec, tdiff.tv_usec, base_time, hmac_str);
-			if(resp_time > (i+1)*base_time) {
-				printf("[s4c7] Response time: %2d s %8d us (%s)\n", tdiff.tv_sec, tdiff.tv_usec, hmac_str);
+// 			printf("[s4c7/8] Avg. Response time: %8d us >? %d (%s)\n", resp_time, base_time, hmac_str);
+// 			printf("[s4c7/8] Response time: %2d s %8d us >? %d (%s)\n", tdiff.tv_sec, tdiff.tv_usec, base_time, hmac_str);
+// 			cmp_time = (i+1)*base_time - 400*i*i - 4500*i; // + 200*(i-4);
+			cmp_time = avg_resp_time + 8000;
+
+			printf("[s4c7/8] Avg. Response time: %8d us >? %d (%s)\n", resp_time, cmp_time, hmac_str);
+			if(resp_time > cmp_time) {
+				printf("[s4c7/8] Avg. Response time: %8d us >? %d (%s)\n", resp_time, cmp_time, hmac_str);
+// 				printf("[s4c7/8] Response time: %2d s %8d us (%s)\n", tdiff.tv_sec, tdiff.tv_usec, hmac_str);
 				break;
 			}
 
 			if(resp_len < 0) {
-				printf("[s4c7] Connection failed! You started webrick in 'set4/filesrv/', right?\n[s4c7] No? Then do so:\n[s4c7] $ cd filesrv/\n[s4c7] $ bin/rails server\n[s4c7] Now try again...\n");
+				printf("[s4c7/8] Connection failed! You started webrick in 'set4/filesrv/', right?\n[s4c7/8] No? Then do so:\n[s4c7/8] $ cd filesrv/\n[s4c7/8] $ bin/rails server\n[s4c7/8] Now try again...\n");
 				error=1;
 				break;
 			}
 		}
+
+// 		cmp_time += 0.7 * resp_time;
 
 		if(error==1)
 			break;
@@ -520,11 +545,11 @@ int main(void)
 	if(resp_len >= 0) {
 		resp[resp_len] = 0;
 		if(strstr(resp, "+200")!=NULL)
-			printf("[s4c7] server response: +200! SHA1-HMAC successfully cracked!\n[s4c7] SHA1-HMAC: %s\n", hmac_str);
+			printf("[s4c7/8] server response: +200! SHA1-HMAC successfully cracked!\n[s4c7/8] SHA1-HMAC: %s\n", hmac_str);
 		else
-			printf("[s4c7] server response: +500! Sorry, SHA1-HMAC cracking attempt failed!\n");
+			printf("[s4c7/8] server response: +500! Sorry, SHA1-HMAC cracking attempt failed!\n");
 	} else {
-		printf("[s4c7] Connection failed! You started webrick in 'set4/filesrv/', right?\n[s4c7] No? Then do so:\n[s4c7] $ cd filesrv/\n[s4c7] $ bin/rails server\n[s4c7] Now try again...\n");
+		printf("[s4c7/8] Connection failed! You started webrick in 'set4/filesrv/', right?\n[s4c7/8] No? Then do so:\n[s4c7/8] $ cd filesrv/\n[s4c7/8] $ bin/rails server\n[s4c7/8] Now try again...\n");
 	}
 
 	return 0;
