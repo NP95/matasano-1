@@ -17,9 +17,11 @@ class FilesController < ApplicationController
 
 		start_time = Time.now()
 		i=0
-		hex_digest.each_char do |d|
-			if d == signature[i]
-				i += 1
+#		hex_digest.each_char do |d|
+#			if d == signature[i]
+		until i==40 do
+			if hex_digest[i] == signature[i] and hex_digest[i+1] == signature[i+1]
+				i += 2
 			else
 				break
 			end
