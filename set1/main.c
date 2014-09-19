@@ -316,20 +316,29 @@ int main(void){
 	len=0;
 	s1c6_cipher_len=0;
 	num_blocks = 0;
-	j=1;
-	res_dist = 100;
+	res_dist = 0;
+	unsigned int line_cnt=1;
+	unsigned int hits=0;
 	while((read = getline(&line_str, &len, fp)) != -1) {
 		s1c6_cipher_len = hex_decode(&s1c6_cipher, line_str, read);
 // 		printf("ciph(%d) = '%s'\n", s1c6_cipher_len, s1c6_cipher);
-		hamming_norm = norm_hamming_distance(s1c6_cipher, s1c6_cipher_len, 16);
-		printf("[%d] hamming_norm = %f\n", j, hamming_norm);
-
-		if(hamming_norm < res_dist) {
-			res_dist = hamming_norm;
-			res_keysize = j;
+		hits = 0;
+		num_blocks = s1c6_cipher_len / 16;
+		for(i=0; i<num_blocks; i++) {
+			for(j=1; j<num_blocks; j++) {
+				for(k=0; k<16; k++) {
+					if(s1c6_cipher[16*i+k]==s1c6_cipher[16*j+k])
+						hits++;
+				}
+			}
 		}
 
-		j++;
+		if(hits > res_dist) {
+			res_dist = hits;
+			res_keysize = line_cnt;
+		}
+		printf("[%d] hits = %d\n", line_cnt, hits);
+		line_cnt++;
 
 		free(s1c6_cipher);
 	}
