@@ -81,7 +81,7 @@ int main(void)
 	unsigned int key_len = 0;
 	aes_ecb_partial_crack(s2c4_plaintext, &s2c4_plaintext_len, &key_len);
 
-	printf("[s2c4] plaintext = {\n%s\n}\n", s2c4_plaintext);
+	printf("[s2c4] plaintext(%d) = {\n%s\n}\n", s2c4_plaintext_len, s2c4_plaintext);
 
 	/** Set 2 Challenge 5 **/
 	/**  ECB cut-n-paste  **/
@@ -204,7 +204,10 @@ int main(void)
 	unsigned int s2c6_plaintext_len;
 	unsigned int s2c6_key_len = 0;
 	memset(s2c6_plaintext, 0, 1024);
+	// fixed prefix
 	aes_ecb_partial_crack2(s2c6_plaintext, &s2c6_plaintext_len, &s2c6_key_len);
+	// dynamic prefix
+// 	aes_ecb_partial_crack3(s2c6_plaintext, &s2c6_plaintext_len, &s2c6_key_len);
 
 	printf("[s2c6] plaintext = {\n%s\n}\n", s2c6_plaintext);
 

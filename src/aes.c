@@ -1,4 +1,5 @@
 #include "../include/aes.h"
+#include "../include/rmath.h"
 
 unsigned int aes_ecb_encrypt(unsigned int block_len_bits, unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *key)
 {
@@ -266,7 +267,10 @@ unsigned int aes_ecb_partial_crack2(unsigned char *plaintext, unsigned int *plai
 	// controlled + target cipher size
 	memset(known_plaintext, 'A', 1024*sizeof(unsigned char));
 	for(i=0; i<16; i++) {
+		// fixed header len
 		garbage_ciphertext_length = aes_encryption_random2(ciphertext, known_plaintext, i+2*16, random_header, random_header_len, random_key);
+// 		// dynamic header len
+// 		garbage_ciphertext_length = aes_encryption_random2(ciphertext, known_plaintext, i+2*16, random_key);
 // 		hex_encode(&ciphertext_hex, ciphertext, ciphertext_length);
 // 		printf("[s2c6] cipher = '%s'\n", ciphertext_hex);
 // 		free(ciphertext_hex);
@@ -311,14 +315,20 @@ unsigned int aes_ecb_partial_crack2(unsigned char *plaintext, unsigned int *plai
 		}
 
 		memcpy(sendbuf+prepad_size, plaintext_one_off, (ciphertext_length-1)*sizeof(unsigned char));
+		// fixed header len
 		cipher_one_off_save_length = aes_encryption_random2(cipher_one_off_save, sendbuf, sendbuf_len-i-1, random_header, random_header_len, random_key);
+		// dynamic header len
+// 		cipher_one_off_save_length = aes_encryption_random2(cipher_one_off_save, sendbuf, sendbuf_len-i-1, random_key);
 
 		for(j=0; j<256; j++) {
 			memset(sendbuf, 'B', sendbuf_len*sizeof(unsigned char));
 			plaintext_one_off[ciphertext_length-1] = j;
 
 			memcpy(sendbuf+prepad_size, plaintext_one_off, ciphertext_length*sizeof(unsigned char));
+			// fixed header len
 			cipher_one_off_length = aes_encryption_random2(cipher_one_off, sendbuf, sendbuf_len, random_header, random_header_len, random_key);
+			// dynamic header len
+// 			cipher_one_off_length = aes_encryption_random2(cipher_one_off, sendbuf, sendbuf_len, random_key);
 // 			printf("[%d] saved_len = %d, cur_len = %d\n", j, nog_cipher_one_off_save_length, nog_cipher_one_off_length);
 
 			// compare to saved one-off cipher
@@ -331,6 +341,22 @@ unsigned int aes_ecb_partial_crack2(unsigned char *plaintext, unsigned int *plai
 	}
 
 	return (*plaintext_length);
+}
+
+unsigned int aes_ecb_partial_crack3(unsigned char *plaintext, unsigned int *plaintext_length, unsigned int *key_length)
+{
+	unsigned int i;
+
+	unsigned char ciphertext[1024];
+	unsigned int cipher_text_len;
+	unsigned char known_plain[1024];
+	unsigned int known_plain_len = 0;
+
+	unsigned char random_key[16];
+
+	aes_random_key(random_key, 16);
+
+	memset(known_plain, 'A', 1024*sizeof(unsigned char));
 }
 
 void aes_random_key(unsigned char *key, unsigned int key_size)
@@ -400,6 +426,7 @@ unsigned int aes_encryption_oracle(unsigned char *ciphertext, unsigned int *ciph
 }
 
 unsigned int aes_encryption_random2(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_header, unsigned int random_header_len, unsigned char *random_key)
+// unsigned int aes_encryption_random2(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_key)
 {
 	unsigned char *unknown_str_b64 = "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK";
 	unsigned char *unknown_str;
@@ -408,13 +435,14 @@ unsigned int aes_encryption_random2(unsigned char *ciphertext, unsigned char *pl
 	unknown_str[unknown_str_len] = '\0';
 
 // 	srand((unsigned int)time(NULL));
-// 	unsigned int header_len = rand() % 64;
-// 	unsigned char header[header_len];
+// 	unsigned int random_header_len = rand() % 64;
+// 	unsigned char random_header[random_header_len];
 	unsigned int i;
 
 // 	// initialize header
-// 	for(i=0; i<header_len; i++) {
-// 		header[i] = 32 + rand() % 224;
+// 	printf("[s2c6] random_header_len = %d\n", random_header_len);
+// 	for(i=0; i<random_header_len; i++) {
+// 		random_header[i] = 32 + rand() % 224;
 // 	}
 
 	unsigned int plaintext_mod_len = random_header_len + plaintext_len + unknown_str_len;

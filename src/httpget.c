@@ -1,6 +1,6 @@
 #include "../include/httpget.h"
 
-int http_request(unsigned char *response, unsigned char *host, unsigned char *page)
+int http_request(unsigned char *response, unsigned char *host, unsigned int port, unsigned char *page)
 {
   struct sockaddr_in *remote;
   int sock;
@@ -10,9 +10,10 @@ int http_request(unsigned char *response, unsigned char *host, unsigned char *pa
   char buf[BUFSIZ+1];
 
   sock = create_tcp_socket();
-  if((ip = get_ip(host))==NULL)
+  if((ip = get_ip(host))==NULL) {
 	  return -1;
-//   fprintf(stderr, "IP is %s\n", ip); 
+  fprintf(stderr, "IP is %s\n", ip);
+  }
   remote = (struct sockaddr_in *)malloc(sizeof(struct sockaddr_in *));
   remote->sin_family = AF_INET;
   tmpres = inet_pton(AF_INET, ip, (void *)(&(remote->sin_addr.s_addr)));
@@ -25,9 +26,10 @@ int http_request(unsigned char *response, unsigned char *host, unsigned char *pa
     fprintf(stderr, "%s is not a valid IP address\n", ip);
     return -1;
   }
-  remote->sin_port = htons(PORT);
+  remote->sin_port = htons(port);
 
   if(connect(sock, (struct sockaddr *)remote, sizeof(struct sockaddr)) < 0){
+	  fprintf(stderr, "Connect failed (port: %d)!\n", port);
 	return -1;
   }
   get = build_get_query(host, page);

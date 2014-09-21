@@ -462,8 +462,12 @@ int main(void)
 	// unsigned int base_time = 81000;
 	unsigned long base_time = 17000;
 	unsigned long run_avg[256];
+	double run_var[256];
+	unsigned long resp_arr[20];
 	unsigned long cmp_time=16000;
 	unsigned long cnt=1;
+	unsigned int meas_num=20;
+	unsigned int lin_coeff = 200;
 
 	// iterate over HMAC bytes
 // 	for(i=0; i<1; i++) {
@@ -492,21 +496,29 @@ int main(void)
 			struct timeval tdiff;
 			run_avg[j] = 0;
 
-			for(k=0; k<20; k++) {
+			for(k=0; k<meas_num; k++) {
 				// start timer
 				gettimeofday(&tstart, NULL);
-				resp_len = http_request(resp, "localhost", req);
+				resp_len = http_request(resp, "localhost", 3000, req);
 				// stop timer
 				gettimeofday(&tstop, NULL);
 
 				timersub(&tstop, &tstart, &tdiff);
 				resp_time = (tdiff.tv_sec * (uint64_t)1000000) + tdiff.tv_usec;
+				resp_arr[k] = resp_time;
 
 				run_avg[j] += resp_time;
 // 				usleep(500);
 			}
 
-			resp_time = run_avg[j] / 20;
+			resp_time = run_avg[j] / meas_num;
+
+			run_var[j] = 0;
+			for(k=0; k<meas_num; k++) {
+				run_var[j] += (resp_arr[k] - resp_time) * (resp_arr[k] - resp_time);
+			}
+			run_var[j] = sqrt((double) run_var[j] / meas_num);
+
 			if(j==0)
 				avg_resp_time = resp_time;
 			else
@@ -516,11 +528,13 @@ int main(void)
 // 			printf("[s4c7/8] Avg. Response time: %8d us >? %d (%s)\n", resp_time, base_time, hmac_str);
 // 			printf("[s4c7/8] Response time: %2d s %8d us >? %d (%s)\n", tdiff.tv_sec, tdiff.tv_usec, base_time, hmac_str);
 // 			cmp_time = (i+1)*base_time - 400*i*i - 4500*i; // + 200*(i-4);
-			cmp_time = avg_resp_time + 8000;
+			cmp_time = avg_resp_time + lin_coeff*i + 4000;
 
-			printf("[s4c7/8] Avg. Response time: %8d us >? %d (%s)\n", resp_time, cmp_time, hmac_str);
+// 			printf("[s4c7/8] Avg. Response time: %8d us >? %6d us (%s)\n", resp_time, cmp_time, hmac_str);
 			if(resp_time > cmp_time) {
-				printf("[s4c7/8] Avg. Response time: %8d us >? %d (%s)\n", resp_time, cmp_time, hmac_str);
+				if((resp_time - cmp_time) < 300)
+					lin_coeff -= 20;
+				printf("[s4c7/8] Avg. Response time: %8d us >? %6d us (%s)\n", resp_time, cmp_time, hmac_str);
 // 				printf("[s4c7/8] Response time: %2d s %8d us (%s)\n", tdiff.tv_sec, tdiff.tv_usec, hmac_str);
 				break;
 			}
@@ -532,6 +546,27 @@ int main(void)
 			}
 		}
 
+// 		unsigned int byte = 0;
+// 		unsigned int max_resp_time = run_avg[0] / meas_num;
+// 		unsigned long var_avg = 0;
+// 		for(j=0; j<256; j++) {
+// 			var_avg += run_var[j];
+// 		}
+// 		var_avg = var_avg / 256;
+// 		var_avg = 1.1*var_avg;
+// 
+// 		for(j=0; j<256; j++) {
+// 			printf("[s4c7/8] %02x: avg=%8d var=%8f (%s, %6d)\n", j, run_avg[j], run_var[j], (run_var[j]<=var_avg)?"y":"n", var_avg);
+// 			if((run_avg[j]/meas_num) > max_resp_time) {
+// 				if(run_var[j] <= var_avg) {
+// 					max_resp_time = run_avg[j]/meas_num;
+// 					byte = j;
+// 				}
+// 			}
+// 		}
+
+// 		hmac[i] = byte;
+// 		printf("[s4c7/8] Avg. Response time: %8d us (%02x)\n", max_resp_time, hmac[i]);
 // 		cmp_time += 0.7 * resp_time;
 
 		if(error==1)
@@ -539,7 +574,7 @@ int main(void)
 	}
 
 	// perform final check
-	resp_len = http_request(resp, "localhost", req);
+	resp_len = http_request(resp, "localhost", 3000, req);
 
 	// 92 4d 16 7e b3 b7 28 10 e3 1d cc 9e 4f 3c 59 91 73 8e 73 91
 	if(resp_len >= 0) {

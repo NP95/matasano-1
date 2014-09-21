@@ -1,14 +1,12 @@
 == README
 
-The 'filesrv' http file server is needed for challenges 31 and 32 for
+The 'websrv' emulated http file server is needed for challenges 31 and 32,
 set 4.
 In order to start the server on localhost, port 3000 run:
 
-$ bin/rails server
+$ ruby ./websrv.py
 
 Now you can start 'main.out' in set4 sub-directory, which will perform
 the SHA1-HMAC timing attacks against the insecure compare of the file
 server application.
-
-The server code is located in 'app/controllers/file_controller.rb'.
 
