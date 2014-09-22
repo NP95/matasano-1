@@ -1,5 +1,4 @@
 #include "../include/aes.h"
-#include "../include/rmath.h"
 
 unsigned int aes_ecb_encrypt(unsigned int block_len_bits, unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *key)
 {

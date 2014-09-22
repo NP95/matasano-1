@@ -419,7 +419,7 @@ int main(void)
 		free(forge_str);
 	}
 	
-	/**    Set 4 Challenge 7    **/
+	/**  Set 4 Challenge 7/8    **/
 	/** SHA1-HMAC TIMING ATTACK **/
 	int resp_len=0;
 	unsigned char resp[2048];
@@ -449,31 +449,13 @@ int main(void)
 	unsigned int k;
 	unsigned long resp_time=0;
 	unsigned long avg_resp_time=17000;
-	// tune this parameter according to the server response
-	// times (* not working reliably)
-	//        server    |
-	//    compare delay | base_time
-	//    --------------+----------
-	//         50 ms    |   100000
-	//         40 ms    |    81000
-	//    *    30 ms    |    63000
-	//    *    20 ms    |    45000
-	//    *    10 ms    |    28000
-	// unsigned int base_time = 81000;
-	unsigned long base_time = 17000;
-	unsigned long run_avg[256];
-	double run_var[256];
-	unsigned long resp_arr[20];
+	unsigned long run_avg;
 	unsigned long cmp_time=16000;
-	unsigned long cnt=1;
-	unsigned int meas_num=20;
+	unsigned int meas_num=10;
 	unsigned int lin_coeff = 200;
 
 	// iterate over HMAC bytes
-// 	for(i=0; i<1; i++) {
 	for(i=0; i<20; i++) {
-// 		cmp_time = (cnt > 1) ? (cmp_time*(cnt-1)+resp_time)/cnt: cmp_time + 0.7*resp_time;
-// 		cnt++;
 		// brute force byte
 		for(j=0; j<256; j++) {
 			// 'calc' HMAC
@@ -494,7 +476,7 @@ int main(void)
 			struct timeval tstart;
 			struct timeval tstop;
 			struct timeval tdiff;
-			run_avg[j] = 0;
+			run_avg = 0;
 
 			for(k=0; k<meas_num; k++) {
 				// start timer
@@ -505,36 +487,23 @@ int main(void)
 
 				timersub(&tstop, &tstart, &tdiff);
 				resp_time = (tdiff.tv_sec * (uint64_t)1000000) + tdiff.tv_usec;
-				resp_arr[k] = resp_time;
 
-				run_avg[j] += resp_time;
-// 				usleep(500);
+				run_avg += resp_time;
 			}
 
-			resp_time = run_avg[j] / meas_num;
-
-			run_var[j] = 0;
-			for(k=0; k<meas_num; k++) {
-				run_var[j] += (resp_arr[k] - resp_time) * (resp_arr[k] - resp_time);
-			}
-			run_var[j] = sqrt((double) run_var[j] / meas_num);
+			resp_time = run_avg / meas_num;
 
 			if(j==0)
 				avg_resp_time = resp_time;
 			else
 				avg_resp_time = (avg_resp_time * j + resp_time)/(j+1);
 
-// 			usleep(500);
-// 			printf("[s4c7/8] Avg. Response time: %8d us >? %d (%s)\n", resp_time, base_time, hmac_str);
-// 			printf("[s4c7/8] Response time: %2d s %8d us >? %d (%s)\n", tdiff.tv_sec, tdiff.tv_usec, base_time, hmac_str);
-// 			cmp_time = (i+1)*base_time - 400*i*i - 4500*i; // + 200*(i-4);
 			cmp_time = avg_resp_time + lin_coeff*i + 4000;
 
-// 			printf("[s4c7/8] Avg. Response time: %8d us >? %6d us (%s)\n", resp_time, cmp_time, hmac_str);
 			if(resp_time > cmp_time) {
 				if((resp_time - cmp_time) < 300)
-					lin_coeff -= 20;
-				printf("[s4c7/8] Avg. Response time: %8d us >? %6d us (%s)\n", resp_time, cmp_time, hmac_str);
+					lin_coeff -= 50;
+				printf("[s4c7/8] Avg. Response time: %8ld us >? %6ld us (%s)\n", resp_time, cmp_time, hmac_str);
 // 				printf("[s4c7/8] Response time: %2d s %8d us (%s)\n", tdiff.tv_sec, tdiff.tv_usec, hmac_str);
 				break;
 			}
@@ -545,29 +514,6 @@ int main(void)
 				break;
 			}
 		}
-
-// 		unsigned int byte = 0;
-// 		unsigned int max_resp_time = run_avg[0] / meas_num;
-// 		unsigned long var_avg = 0;
-// 		for(j=0; j<256; j++) {
-// 			var_avg += run_var[j];
-// 		}
-// 		var_avg = var_avg / 256;
-// 		var_avg = 1.1*var_avg;
-// 
-// 		for(j=0; j<256; j++) {
-// 			printf("[s4c7/8] %02x: avg=%8d var=%8f (%s, %6d)\n", j, run_avg[j], run_var[j], (run_var[j]<=var_avg)?"y":"n", var_avg);
-// 			if((run_avg[j]/meas_num) > max_resp_time) {
-// 				if(run_var[j] <= var_avg) {
-// 					max_resp_time = run_avg[j]/meas_num;
-// 					byte = j;
-// 				}
-// 			}
-// 		}
-
-// 		hmac[i] = byte;
-// 		printf("[s4c7/8] Avg. Response time: %8d us (%02x)\n", max_resp_time, hmac[i]);
-// 		cmp_time += 0.7 * resp_time;
 
 		if(error==1)
 			break;
