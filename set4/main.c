@@ -133,9 +133,9 @@ int main(void)
 
 	// we assume the aes_ctr_edit() function internally knows
 	// key and nonce, so we provide it here (but we don't know it actually)
-// 	s4c1_edit_crypt_len = aes_ctr_edit_crack(s4c1_edit_crypt, s4c1_cipher_ctr, s4c1_cipher_ctr_len, s4c1_key, s4c1_nonce);
-// 	s4c1_edit_crypt[s4c1_edit_crypt_len] = 0;
-// 	printf("[s4c1] recovered plain (%d) = '%s'\n", s4c1_edit_crypt_len, s4c1_edit_crypt);
+	s4c1_edit_crypt_len = aes_ctr_edit_crack(s4c1_edit_crypt, s4c1_cipher_ctr, s4c1_cipher_ctr_len, s4c1_key, s4c1_nonce);
+	s4c1_edit_crypt[s4c1_edit_crypt_len] = 0;
+	printf("[s4c1] recovered plain (%d) = '%s'\n", s4c1_edit_crypt_len, s4c1_edit_crypt);
 
 	/** Set 4 Challenge 2 **/
 	/** CTR BITFLIP ATTAX **/
