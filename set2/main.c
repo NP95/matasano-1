@@ -205,9 +205,9 @@ int main(void)
 	unsigned int s2c6_key_len = 0;
 	memset(s2c6_plaintext, 0, 1024);
 	// fixed prefix
-	aes_ecb_partial_crack2(s2c6_plaintext, &s2c6_plaintext_len, &s2c6_key_len);
+// 	aes_ecb_partial_crack2(s2c6_plaintext, &s2c6_plaintext_len, &s2c6_key_len);
 	// dynamic prefix
-// 	aes_ecb_partial_crack3(s2c6_plaintext, &s2c6_plaintext_len, &s2c6_key_len);
+	aes_ecb_partial_crack3(s2c6_plaintext, &s2c6_plaintext_len, &s2c6_key_len);
 
 	printf("[s2c6] plaintext = {\n%s\n}\n", s2c6_plaintext);
 
