@@ -33,7 +33,7 @@ unsigned int aes_encryption_random(unsigned char *ciphertext, unsigned char *pla
 unsigned int aes_encryption_random2(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_header, unsigned int random_header_len, unsigned char *random_key);
 // dynamic header len
 unsigned int aes_encryption_random3(unsigned char *ciphertext, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_key);
-unsigned int aes_encryption_random3_sane(unsigned char *sane_ciphertext, unsigned int expected_ct_len, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_key);
+unsigned int aes_encryption_random3_sane(unsigned char *sane_ciphertext, unsigned char *expected_ct, unsigned int expected_ct_len, unsigned char *plaintext, unsigned int plaintext_len, unsigned char *random_key);
 
 unsigned int aes_encryption_oracle(unsigned char *ciphertext, unsigned int *ciphertext_len, unsigned char *plaintext, unsigned int plaintext_len);
 
