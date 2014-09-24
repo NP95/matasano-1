@@ -12,8 +12,8 @@ set3:  src/aes.o src/histogram.o src/hamming.o src/hex2base64.o src/xor.o src/he
 set4:  src/httpget.o src/md4.o src/sha1.o src/mac.o src/aes.o src/histogram.o src/hamming.o src/hex2base64.o src/xor.o src/hex_coder.o src/pkcs.o src/rrand.o set4/main.o
 	gcc -ggdb src/httpget.c src/md4.c src/sha1.c src/mac.c src/histogram.c src/hamming.c src/hex2base64.c src/xor.c src/aes.c src/hex_coder.c src/pkcs.c src/rrand.c set4/main.c -lm -lcrypto -o set4/main.out
 
-set5:  src/dh.o set5/main.o
-	gcc -ggdb src/dh.c set5/main.c -lm -lcrypto -o set5/main.out
+set5:  src/rmath.o src/dh.o set5/main.o
+	gcc -ggdb src/rmath.c src/dh.c set5/main.c -lm -lcrypto -o set5/main.out
 
 clean:
 	rm -rf ./src/*.o
