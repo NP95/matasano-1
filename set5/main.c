@@ -9,6 +9,7 @@ int main(int argc, char *argv[])
 {
 	/** SET 5 CHALLENGE 33 **/
 	/**  DH KEY EXCHANGE   **/
+	// small int
 	unsigned long a, A, b, B, s1, s2;
 
 	srand(time(NULL));
@@ -19,7 +20,33 @@ int main(int argc, char *argv[])
 	s1 = dh_generate_session_key_smallint(a, B);
 	s2 = dh_generate_session_key_smallint(b, A);
 
-	printf("[s5c1] a = %lld, A = %lld, b = %lld, B = %lld, s = %lld ?= %lld\n", a, A, b, B, s1, s2);
+	printf("[s5c1] *smallint* a = %ld, A = %ld, b = %ld, B = %ld, s = %ld ?= %ld\n", a, A, b, B, s1, s2);
+
+	// bigint
+	BIGNUM p, g;
+	BIGNUM ba, bA, bb, bB, bs1, bs2;
+
+	dh_init(&p, &g);
+
+	BN_init(&ba);
+	BN_init(&bA);
+	BN_init(&bb);
+	BN_init(&bB);
+	BN_init(&bs1);
+	BN_init(&bs2);
+
+	dh_generate_keypair(&ba, &bA, &g, &p);
+	dh_generate_keypair(&bb, &bB, &g, &p);
+	dh_generate_session_key(&bs1, &ba, &bB, &p);
+	dh_generate_session_key(&bs2, &bb, &bA, &p);
+
+	printf("[s5c1] *bignum* s1 = {\n");
+	BN_print_fp(stdout, &bs1);
+	printf("\n}\n[s5c1] *bignum* s2 = {\n");
+	BN_print_fp(stdout, &bs2);
+	printf("\n}\n");
+
+	dh_clear(&p, &g);
 
 	return 0;
 }
