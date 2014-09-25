@@ -35,15 +35,22 @@ int main(int argc, char *argv[])
 	BN_init(&bs1);
 	BN_init(&bs2);
 
+	unsigned char c_s1[20], c_s2[20];
+	unsigned int i;
+
 	dh_generate_keypair(&ba, &bA, &g, &p);
 	dh_generate_keypair(&bb, &bB, &g, &p);
-	dh_generate_session_key(&bs1, &ba, &bB, &p);
-	dh_generate_session_key(&bs2, &bb, &bA, &p);
+	dh_generate_session_key(c_s1, &bs1, &ba, &bB, &p);
+	dh_generate_session_key(c_s2, &bs2, &bb, &bA, &p);
 
 	printf("[s5c1] *bignum* s1 = {\n");
-	BN_print_fp(stdout, &bs1);
+// 	BN_print_fp(stdout, &bs1);
+	for(i=0; i<20; i++)
+		printf("%02x", c_s1[i]);
 	printf("\n}\n[s5c1] *bignum* s2 = {\n");
-	BN_print_fp(stdout, &bs2);
+// 	BN_print_fp(stdout, &bs2);
+	for(i=0; i<20; i++)
+		printf("%02x", c_s2[i]);
 	printf("\n}\n");
 
 	dh_clear(&p, &g);

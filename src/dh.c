@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "../include/dh.h"
 #include "../include/rmath.h"
 
@@ -51,12 +53,16 @@ void dh_generate_keypair(BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *g, BIGNUM *p
 	BN_CTX_free(ctx);
 }
 
-void dh_generate_session_key(BIGNUM *session_key, BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *p)
+void dh_generate_session_key(unsigned char *c_session_key, BIGNUM *session_key, BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *p)
 {
+	unsigned char sess_bignum[1024];
 	BN_CTX *ctx = BN_CTX_new();
 	BN_CTX_init(ctx);
 
 	BN_mod_exp(session_key, pub_key, priv_key, p, ctx);
+
+	strncpy(sess_bignum, BN_bn2hex(session_key), 1024);
+	SHA1(sess_bignum, 1024, c_session_key);
 
 	BN_CTX_free(ctx);
 }

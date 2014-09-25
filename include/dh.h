@@ -4,6 +4,7 @@
 #include <math.h>
 #include <openssl/bn.h>
 #include <openssl/rand.h>
+#include <openssl/sha.h>
 
 // smallnum constants
 static const unsigned int p_smallint = 37;
@@ -27,10 +28,16 @@ bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff\
 fffffffffffff";
 static const char *BN_g_str = "2";
 
+/** DH BASE FUNCS **/
 void dh_init(BIGNUM *p, BIGNUM *g);
 void dh_clear(BIGNUM *p, BIGNUM *g);
 
 void dh_generate_keypair(BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *g, BIGNUM *p);
-void dh_generate_session_key(BIGNUM *session_key, BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *p);
+void dh_generate_session_key(unsigned char *c_session_key, BIGNUM *session_key, BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *p);
+
+/** DHKE SIMULATION FUNCS **/
+void dhke_initiate(BIGNUM *p, BIGNUM *g, BIGNUM *pub_key);
+void dhke_initiate_reply(BIGNUM *pub_key);
+void dhke_session_send(unsigned char *crypted_msg, unsigned int msg_len, unsigned char *iv);
 
 #endif // __DH_H
