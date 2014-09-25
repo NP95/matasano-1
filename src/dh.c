@@ -56,26 +56,32 @@ void dh_generate_keypair(BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *g, BIGNUM *p
 
 void dh_generate_session_key(unsigned char *c_session_key, BIGNUM *session_key, BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *p)
 {
-	unsigned char sess_bignum[1024];
 	BN_CTX *ctx = BN_CTX_new();
 	BN_CTX_init(ctx);
 
 	BN_mod_exp(session_key, pub_key, priv_key, p, ctx);
 
-	strncpy(sess_bignum, BN_bn2hex(session_key), 1024);
-	SHA1(sess_bignum, 1024, c_session_key);
+	unsigned int len = BN_num_bytes(session_key);
+	unsigned char sess_bignum[2*len];
+	strncpy(sess_bignum, BN_bn2hex(session_key), 2*len);
+	printf("sess_key(%d) = '%s'\n", len, sess_bignum);
+	SHA1(sess_bignum, 2*len, c_session_key);
 
 	BN_CTX_free(ctx);
 }
 
 void dhke_initiate(unsigned char *c_p, unsigned char *c_g, unsigned char *c_pub_key, BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *p, BIGNUM *g)
 {
-	strncpy(c_p, BN_bn2hex(p), 1024);
-	strncpy(c_g, BN_bn2hex(g), 1024);
+	unsigned int len_p, len_g, len_pubk;
+	len_p = BN_num_bytes(p);
+	len_g = BN_num_bytes(g);
+	strncpy(c_p, BN_bn2hex(p), 2*len_p);
+	strncpy(c_g, BN_bn2hex(g), 2*len_g);
 
 	dh_generate_keypair(priv_key, pub_key, g, p);
 
-	strncpy(c_pub_key, BN_bn2hex(pub_key), 1024);
+	len_pubk = BN_num_bytes(pub_key);
+	strncpy(c_pub_key, BN_bn2hex(pub_key), 2*len_pubk);
 }
 
 void dhke_initiate_finalize(unsigned char *sess_key, unsigned char *pub_key_reply, BIGNUM *priv_key, BIGNUM *p)
@@ -119,7 +125,8 @@ void dhke_initiate_reply(unsigned char *pub_key_reply, unsigned char *c_p, unsig
 
 	dh_generate_keypair(&b, &B, &g, &p);
 
-	strncpy(pub_key_reply, BN_bn2hex(&B), 1024);
+	unsigned int len = BN_num_bytes(&B);
+	strncpy(pub_key_reply, BN_bn2hex(&B), 2*len);
 	BN_hex2bn(&A2, pub_key_init);
 
 	dh_generate_session_key(sess_key, &s, &b, &A, &p);

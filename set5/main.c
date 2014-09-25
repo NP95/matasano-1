@@ -64,24 +64,26 @@ int main(int argc, char *argv[])
 	BN_init(&ba);
 	BN_init(&bA);
 
-	// A -> B: p, g, A
-	printf("[s5c2] A -> B: p, g, A\n");
+	// M -> B: p, g, p
+	printf("[s5c2] M -> B: p, g, p\n");
 	dhke_initiate(c_p, c_g, c_A, &ba, &bA, &p, &g);
 
-	// B -> A: B
-	printf("[s5c2] B -> A: B\n");
-	dhke_initiate_reply(c_B, c_p, c_g, c_A, c_s2);
+	// M -> A: p
+	printf("[s5c2] M -> A: p\n");
+// 	dhke_initiate_reply(c_B, c_p, c_g, c_A, c_s2);
+	dhke_initiate_reply(c_B, c_p, c_g, c_p, c_s2);
 
 	// A -> B: cmsg, iv
-	dhke_initiate_finalize(c_s1, c_B, &ba, &p);
+// 	dhke_initiate_finalize(c_s1, c_B, &ba, &p);
+	dhke_initiate_finalize(c_s1, c_p, &ba, &p);
 
-// 	printf("[s5c2] *bignum* s1 = '");
-// 	for(i=0; i<20; i++)
-// 		printf("%02x", c_s1[i]);
-// 	printf("'\n[s5c2] *bignum* s2 = '");
-// 	for(i=0; i<20; i++)
-// 		printf("%02x", c_s2[i]);
-// 	printf("'\n");
+	printf("[s5c2] *bignum* s1 = '");
+	for(i=0; i<20; i++)
+		printf("%02x", c_s1[i]);
+	printf("'\n[s5c2] *bignum* s2 = '");
+	for(i=0; i<20; i++)
+		printf("%02x", c_s2[i]);
+	printf("'\n");
 
 	unsigned char *plain_in = "YELLOW SUBMARINE";
 	unsigned char p_out[128];
@@ -96,6 +98,23 @@ int main(int argc, char *argv[])
 	}
 	printf("', iv\n");
 
+	// perform attack as M
+	unsigned char m_out[128];
+	unsigned char obuf[20];
+
+	// M knows s = 0 and calculates session key = SHA1(0)
+	SHA1("", 0, obuf);
+	printf("[s5c2] M: sess_key = '");
+	for(i=0; i<20; i++) {
+		printf("%02x", obuf[i]);
+	}
+	printf("'\n");
+
+	// M performs decryption
+	aes_cbc_decrypt(128, m_out, c_out, c_len, obuf, iv);
+	printf("[s5c2] M decrypts msg='%s'\n", m_out);
+
+	// B performs decryption
 	p_len = dhke_session_recv(p_out, c_out, c_len, c_s2, iv);
 
 	printf("[s5c2] B recvd: msg = '%s'\n", p_out);
