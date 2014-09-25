@@ -36,8 +36,10 @@ void dh_generate_keypair(BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *g, BIGNUM *p
 void dh_generate_session_key(unsigned char *c_session_key, BIGNUM *session_key, BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *p);
 
 /** DHKE SIMULATION FUNCS **/
-void dhke_initiate(BIGNUM *p, BIGNUM *g, BIGNUM *pub_key);
-void dhke_initiate_reply(BIGNUM *pub_key);
-void dhke_session_send(unsigned char *crypted_msg, unsigned int msg_len, unsigned char *iv);
+void dhke_initiate(unsigned char *c_p, unsigned char *c_g, unsigned char *c_pub_key, BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *p, BIGNUM *g);
+void dhke_initiate_finalize(unsigned char *sess_key, unsigned char *pub_key_reply, BIGNUM *priv_key, BIGNUM *p);
+void dhke_initiate_reply(unsigned char *pub_key_reply, unsigned char *c_p, unsigned char *c_g, unsigned char *pub_key_init, unsigned char *sess_key);
+unsigned int dhke_session_send(unsigned char *crypted_msg, unsigned char *iv, unsigned char *plain_msg, unsigned int plain_msg_len, unsigned char *sess_key);
+unsigned int dhke_session_recv(unsigned char *plain_msg, unsigned char *crypt_msg, unsigned int crypt_msg_len, unsigned char *sess_key, unsigned char *iv);
 
 #endif // __DH_H

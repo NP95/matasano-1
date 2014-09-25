@@ -43,15 +43,62 @@ int main(int argc, char *argv[])
 	dh_generate_session_key(c_s1, &bs1, &ba, &bB, &p);
 	dh_generate_session_key(c_s2, &bs2, &bb, &bA, &p);
 
-	printf("[s5c1] *bignum* s1 = {\n");
+	printf("[s5c1] *bignum* s1 = '");
 // 	BN_print_fp(stdout, &bs1);
 	for(i=0; i<20; i++)
 		printf("%02x", c_s1[i]);
-	printf("\n}\n[s5c1] *bignum* s2 = {\n");
+	printf("'\n[s5c1] *bignum* s2 = '");
 // 	BN_print_fp(stdout, &bs2);
 	for(i=0; i<20; i++)
 		printf("%02x", c_s2[i]);
-	printf("\n}\n");
+	printf("'\n");
+
+	/**  SET 5 CHALLENGE 34  **/
+	/** DH-KE FIXED KEY MITM **/
+
+	unsigned char c_p[1024];
+	unsigned char c_g[1024];
+	unsigned char c_A[1024];
+	unsigned char c_B[1024];
+
+	BN_init(&ba);
+	BN_init(&bA);
+
+	// A -> B: p, g, A
+	printf("[s5c2] A -> B: p, g, A\n");
+	dhke_initiate(c_p, c_g, c_A, &ba, &bA, &p, &g);
+
+	// B -> A: B
+	printf("[s5c2] B -> A: B\n");
+	dhke_initiate_reply(c_B, c_p, c_g, c_A, c_s2);
+
+	// A -> B: cmsg, iv
+	dhke_initiate_finalize(c_s1, c_B, &ba, &p);
+
+// 	printf("[s5c2] *bignum* s1 = '");
+// 	for(i=0; i<20; i++)
+// 		printf("%02x", c_s1[i]);
+// 	printf("'\n[s5c2] *bignum* s2 = '");
+// 	for(i=0; i<20; i++)
+// 		printf("%02x", c_s2[i]);
+// 	printf("'\n");
+
+	unsigned char *plain_in = "YELLOW SUBMARINE";
+	unsigned char p_out[128];
+	unsigned char c_out[128];
+	unsigned char iv[16];
+	unsigned int c_len, p_len;
+
+	c_len = dhke_session_send(c_out, iv, plain_in, 16, c_s1);
+	printf("[s5c2] A -> B: cmsg = '");
+	for(i=0; i<c_len; i++) {
+		printf("%02x", c_out[i]);
+	}
+	printf("', iv\n");
+
+	p_len = dhke_session_recv(p_out, c_out, c_len, c_s2, iv);
+
+	printf("[s5c2] B recvd: msg = '%s'\n", p_out);
 
 	dh_clear(&p, &g);
 

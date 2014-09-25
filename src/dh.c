@@ -1,5 +1,6 @@
 #include <string.h>
 
+#include "../include/aes.h"
 #include "../include/dh.h"
 #include "../include/rmath.h"
 
@@ -67,3 +68,84 @@ void dh_generate_session_key(unsigned char *c_session_key, BIGNUM *session_key, 
 	BN_CTX_free(ctx);
 }
 
+void dhke_initiate(unsigned char *c_p, unsigned char *c_g, unsigned char *c_pub_key, BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *p, BIGNUM *g)
+{
+	strncpy(c_p, BN_bn2hex(p), 1024);
+	strncpy(c_g, BN_bn2hex(g), 1024);
+
+	dh_generate_keypair(priv_key, pub_key, g, p);
+
+	strncpy(c_pub_key, BN_bn2hex(pub_key), 1024);
+}
+
+void dhke_initiate_finalize(unsigned char *sess_key, unsigned char *pub_key_reply, BIGNUM *priv_key, BIGNUM *p)
+{
+	BIGNUM s, B, *B2;
+
+	BN_init(&B);
+// 	BN_init(B2);
+	BN_init(&s);
+
+	B2 = &B;
+
+	BN_hex2bn(&B2, pub_key_reply);
+
+	dh_generate_session_key(sess_key, &s, priv_key, &B, p);
+
+	BN_clear(&B);
+// 	BN_clear(B2);
+	BN_clear(&s);
+}
+
+void dhke_initiate_reply(unsigned char *pub_key_reply, unsigned char *c_p, unsigned char *c_g, unsigned char *pub_key_init, unsigned char *sess_key)
+{
+	BIGNUM b, B, A, *A2, s, p, *p2, g, *g2;
+	BN_init(&b);
+	BN_init(&B);
+	BN_init(&A);
+// 	BN_init(A2);
+	BN_init(&s);
+	BN_init(&p);
+// 	BN_init(p2);
+	BN_init(&g);
+// 	BN_init(g2);
+
+	p2 = &p;
+	g2 = &g;
+	A2 = &A;
+
+	BN_hex2bn(&p2, c_p);
+	BN_hex2bn(&g2, c_g);
+
+	dh_generate_keypair(&b, &B, &g, &p);
+
+	strncpy(pub_key_reply, BN_bn2hex(&B), 1024);
+	BN_hex2bn(&A2, pub_key_init);
+
+	dh_generate_session_key(sess_key, &s, &b, &A, &p);
+
+	BN_clear(&b);
+	BN_clear(&B);
+	BN_clear(&A);
+// 	BN_clear(A2);
+	BN_clear(&s);
+	BN_clear(&p);
+// 	BN_clear(p2);
+	BN_clear(&g);
+// 	BN_clear(g2);
+}
+
+unsigned int dhke_session_send(unsigned char *crypted_msg, unsigned char *iv, unsigned char *plain_msg, unsigned int plain_msg_len, unsigned char *sess_key)
+{
+	// generate random iv
+	aes_random_key(iv, 16);
+
+	// perform encryption
+	return aes_cbc_encrypt(128, crypted_msg, plain_msg, plain_msg_len, sess_key, iv);
+}
+
+unsigned int dhke_session_recv(unsigned char *plain_msg, unsigned char *crypt_msg, unsigned int crypt_msg_len, unsigned char *sess_key, unsigned char *iv)
+{
+	// perform decryption
+	return aes_cbc_decrypt(128, plain_msg, crypt_msg, crypt_msg_len, sess_key, iv);
+}
