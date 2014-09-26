@@ -100,24 +100,73 @@ int main(int argc, char *argv[])
 
 	// perform attack as M
 	unsigned char m_out[128];
-	unsigned char obuf[20];
-
-	// M knows s = 0 and calculates session key = SHA1(0)
-	SHA1("", 0, obuf);
-	printf("[s5c2] M: sess_key = '");
-	for(i=0; i<20; i++) {
-		printf("%02x", obuf[i]);
-	}
-	printf("'\n");
 
 	// M performs decryption
-	aes_cbc_decrypt(128, m_out, c_out, c_len, obuf, iv);
+	dhke_attack_zero_session_key(m_out, c_out, c_len, iv);
 	printf("[s5c2] M decrypts msg='%s'\n", m_out);
 
 	// B performs decryption
 	p_len = dhke_session_recv(p_out, c_out, c_len, c_s2, iv);
 
 	printf("[s5c2] B recvd: msg = '%s'\n", p_out);
+
+	/**   SET 5 CHALLENGE 35   **/
+	/** DH-KE MALICIOUS G MITM **/
+	memset(c_g, 0, 1024);
+	memset(c_p, 0, 1024);
+	memset(c_A, 0, 1024);
+	memset(c_B, 0, 1024);
+	memset(c_out, 0, 128);
+	memset(m_out, 0, 128);
+
+	BIGNUM bn1, g2;
+
+	BN_init(&ba);
+	BN_init(&bA);
+	BN_init(&bn1);
+	BN_init(&g2);
+
+	// prepare malicious g'
+	// g' = 0; --> perform dhke_attack_zero_session_key()
+// 	printf("[s5c3] M sets g' = 0\n");
+// 	BN_zero(&g2);
+	// g' = p --> perform dhke_attack_zero_session_key()
+// 	printf("[s5c3] M sets g' = p\n");
+// 	BN_copy(&g2, &p);
+	// g' = p-1
+	printf("[s5c3] M sets and distributes g' = p-1\n");
+	BN_one(&bn1);
+	BN_sub(&g2, &p, &bn1);
+
+	// M -> B: p, g', A'
+	printf("[s5c3] A -> B: A'\n");
+	dhke_initiate(c_p, c_g, c_A, &ba, &bA, &p, &g2);
+
+	// M -> A: B'
+	printf("[s5c3] B -> A: B'\n");
+	dhke_initiate_reply(c_B, c_p, c_g, c_A, c_s2);
+
+	// A -> B: cmsg, iv
+	dhke_initiate_finalize(c_s1, c_B, &ba, &p);
+
+	c_len = dhke_session_send(c_out, iv, plain_in, 16, c_s1);
+	printf("[s5c3] A -> B: cmsg = '");
+	for(i=0; i<c_len; i++) {
+		printf("%02x", c_out[i]);
+	}
+	printf("', iv\n");
+
+	// M performs decryption
+	// use for: g' = 0, g' = p
+// 	dhke_attack_zero_session_key(m_out, c_out, c_len, iv);
+	// use for g' = p-1
+	dhke_attack_p_1_session_key(m_out, c_out, c_len, c_A, c_B, iv);
+	printf("[s5c3] M decrypts msg='%s'\n", m_out);
+
+	// B performs decryption
+	p_len = dhke_session_recv(p_out, c_out, c_len, c_s2, iv);
+
+	printf("[s5c3] B recvd: msg = '%s'\n", p_out);
 
 	dh_clear(&p, &g);
 

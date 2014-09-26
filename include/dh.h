@@ -42,4 +42,8 @@ void dhke_initiate_reply(unsigned char *pub_key_reply, unsigned char *c_p, unsig
 unsigned int dhke_session_send(unsigned char *crypted_msg, unsigned char *iv, unsigned char *plain_msg, unsigned int plain_msg_len, unsigned char *sess_key);
 unsigned int dhke_session_recv(unsigned char *plain_msg, unsigned char *crypt_msg, unsigned int crypt_msg_len, unsigned char *sess_key, unsigned char *iv);
 
+/** DHKE ATTACK FUNCS **/
+unsigned int dhke_attack_zero_session_key(unsigned char *plain, unsigned char *cmsg, unsigned int cmsg_len, unsigned char *iv);
+unsigned int dhke_attack_p_1_session_key(unsigned char *plain, unsigned char *cmsg, unsigned int cmsg_len, unsigned char *pubkey_A, unsigned char *pubkey_B, unsigned char *iv);
+
 #endif // __DH_H

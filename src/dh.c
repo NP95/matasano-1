@@ -64,7 +64,7 @@ void dh_generate_session_key(unsigned char *c_session_key, BIGNUM *session_key, 
 	unsigned int len = BN_num_bytes(session_key);
 	unsigned char sess_bignum[2*len];
 	strncpy(sess_bignum, BN_bn2hex(session_key), 2*len);
-	printf("sess_key(%d) = '%s'\n", len, sess_bignum);
+// 	printf("sess_key(%d) = '%s'\n", len, sess_bignum);
 	SHA1(sess_bignum, 2*len, c_session_key);
 
 	BN_CTX_free(ctx);
@@ -89,7 +89,6 @@ void dhke_initiate_finalize(unsigned char *sess_key, unsigned char *pub_key_repl
 	BIGNUM s, B, *B2;
 
 	BN_init(&B);
-// 	BN_init(B2);
 	BN_init(&s);
 
 	B2 = &B;
@@ -99,7 +98,6 @@ void dhke_initiate_finalize(unsigned char *sess_key, unsigned char *pub_key_repl
 	dh_generate_session_key(sess_key, &s, priv_key, &B, p);
 
 	BN_clear(&B);
-// 	BN_clear(B2);
 	BN_clear(&s);
 }
 
@@ -109,12 +107,9 @@ void dhke_initiate_reply(unsigned char *pub_key_reply, unsigned char *c_p, unsig
 	BN_init(&b);
 	BN_init(&B);
 	BN_init(&A);
-// 	BN_init(A2);
 	BN_init(&s);
 	BN_init(&p);
-// 	BN_init(p2);
 	BN_init(&g);
-// 	BN_init(g2);
 
 	p2 = &p;
 	g2 = &g;
@@ -134,12 +129,9 @@ void dhke_initiate_reply(unsigned char *pub_key_reply, unsigned char *c_p, unsig
 	BN_clear(&b);
 	BN_clear(&B);
 	BN_clear(&A);
-// 	BN_clear(A2);
 	BN_clear(&s);
 	BN_clear(&p);
-// 	BN_clear(p2);
 	BN_clear(&g);
-// 	BN_clear(g2);
 }
 
 unsigned int dhke_session_send(unsigned char *crypted_msg, unsigned char *iv, unsigned char *plain_msg, unsigned int plain_msg_len, unsigned char *sess_key)
@@ -155,4 +147,54 @@ unsigned int dhke_session_recv(unsigned char *plain_msg, unsigned char *crypt_ms
 {
 	// perform decryption
 	return aes_cbc_decrypt(128, plain_msg, crypt_msg, crypt_msg_len, sess_key, iv);
+}
+
+/**
+ * When both targets use s = 0 as session key
+ * this func decryots their msgs.
+ *
+ * s = 0 occurs, if:
+ *     A = B = p (fixed key MITM)
+ *     g = 0     (malicious group MITM)
+ *     g = p     (malicious group MITM)
+ **/
+unsigned int dhke_attack_zero_session_key(unsigned char *plain, unsigned char *cmsg, unsigned int cmsg_len, unsigned char *iv)
+{
+	unsigned char obuf[20];
+
+	// derive session key for s=0
+	SHA1("", 0, obuf);
+
+	// perform decryption
+	return aes_cbc_decrypt(128, plain, cmsg, cmsg_len, obuf, iv);
+}
+
+/**
+ * If g = p-1, use this function to decrypt
+ * msgs with the derived session key.
+ * s = p - 1, if A = B = p-1
+ * s = 1, else
+ **/
+unsigned int dhke_attack_p_1_session_key(unsigned char *plain, unsigned char *cmsg, unsigned int cmsg_len, unsigned char *pubkey_A, unsigned char *pubkey_B, unsigned char *iv)
+{
+	unsigned char obuf[20];
+	unsigned char sk[1024];
+	short one_flag = 1;
+
+	// check whether s = p - 1 or s = 1
+	if(!strcmp(pubkey_A, pubkey_B)) {
+		if(strlen(pubkey_A) > 2)
+			one_flag = 0;
+	}
+
+	// s = 1
+	if(one_flag) {
+		// derive session key
+		SHA1("01", 2, obuf);
+	} else {
+		// derive session key
+		SHA1(pubkey_A, strlen(pubkey_A), obuf);
+	}
+
+	return aes_cbc_decrypt(128, plain, cmsg, cmsg_len, obuf, iv);
 }
