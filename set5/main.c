@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include "../include/dh.h"
+#include "../include/srp.h"
 
 int main(int argc, char *argv[])
 {
@@ -167,6 +168,39 @@ int main(int argc, char *argv[])
 	p_len = dhke_session_recv(p_out, c_out, c_len, c_s2, iv);
 
 	printf("[s5c3] B recvd: msg = '%s'\n", p_out);
+
+	/**   SET 5 CHALLENGE 36   **/
+	/** SECURE REMOTE PASSWORD **/
+	unsigned char srp_salt[9];
+	unsigned char *srp_pass = "GDFTHR OF GRUNGE"; // 16
+
+	BIGNUM v, sS, cS;
+	BN_init(&v);
+	BN_init(&ba);
+	BN_init(&bA);
+	BN_init(&bb);
+	BN_init(&bB);
+	BN_init(&cS);
+	BN_init(&sS);
+
+	printf("srv init\n");
+	srp_server_init(srp_salt, &v, &bb, &bB, srp_pass, &g, &p);
+	printf("clt init\n");
+	srp_client_init(&ba, &bA, &g, &p);
+
+	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];
+
+	printf("server calc S\n");
+	srp_server_calc_session_key(str_hash, &sS, &bA, &bb, &bB, &v, &p);
+	printf("[s5c4] server: sha256(S) = %s\n", str_hash);
+	
+	memset(str_hash, 0, 2*SHA256_DIGEST_LENGTH);
+	printf("client calc S\n");
+	srp_client_calc_session_key(str_hash, &cS, srp_salt, srp_pass, &ba, &bA, &bB, &g, &p);
+	printf("[s5c4] client: sha256(S) = %s\n", str_hash);
+
+// 	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];
+// 	srp_generate_salted_password_hash(&v, str_hash, srp_salt, srp_pass);
 
 	dh_clear(&p, &g);
 
