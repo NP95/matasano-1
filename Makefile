@@ -1,4 +1,4 @@
-all: set1 set2 set3 set4
+all: set1 set2 set3 set4 set5
 
 set1: src/aes.o src/pkcs.o src/hex2base64.o src/hex_coder.o src/xor.o src/histogram.o src/hamming.o set1/main.o
 	gcc -ggdb src/aes.c src/pkcs.o src/hex2base64.c src/hex_coder.c src/xor.c src/histogram.c src/hamming.c set1/main.c -lm -lcrypto -o set1/main.out

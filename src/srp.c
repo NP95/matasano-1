@@ -121,20 +121,24 @@ void srp_server_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, BIGNUM *i
 	BN_init(&T1);
 
 	BN_CTX_init(ctx);
-	BN_exp(&T1, i_A, i_b, ctx);
+	printf("calc T1\n");
+	BN_mod_exp(&T1, i_A, i_b, i_N, ctx);
 
 	// T2 = u*b
 	BN_init(&T2);
 
 	BN_CTX_init(ctx);
+	printf("calc T2\n");
 	BN_mul(&T2, &u, i_b, ctx);
 
 	// T3 = v ^ u*b = v ^ T2
 	BN_init(&T3);
 	BN_CTX_init(ctx);
-	BN_exp(&T3, i_v, &T2, ctx);
+	printf("calc T3\n");
+	BN_mod_exp(&T3, i_v, &T2, i_N, ctx);
 
 	// S = ( T1 * T3 ) % N
+	printf("calc S\n");
 	BN_mod_mul(o_S, &T1, &T3, i_N, ctx);
 
 	// convert S to string
@@ -168,30 +172,35 @@ void srp_client_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, unsigned 
 	//   = ( B^T2 - k*g^(x*T2) ) % N
 	//   = (   T3 -  T1 ^ T2 ) % N
 	
-	BIGNUM T1, T2, T3;
+	BIGNUM T1, T2, T3, T4;
 	BN_CTX *ctx = BN_CTX_new();
 
 	// T1 = u*x
 	BN_init(&T1);
 	BN_CTX_init(ctx);
 
+	printf("calc T1\n");
 	BN_mul(&T1, &u, &x, ctx);
 
 	// T2 = a + u*x = a + T1
 	BN_init(&T2);
 	
+	printf("calc T2\n");
 	BN_add(&T2, i_a, &T1);
 
 	// T3 = B^(a + u*x) = B^T2
 	BN_init(&T3);
 	BN_CTX_init(ctx);
 
-	BN_exp(&T3, i_B, &T2, ctx);
+	printf("calc T3\n");
+	BN_mod_exp(&T3, i_B, &T2, i_N, ctx);
 
-	// T2 = x*(a+ux) = x*T2
+	// T4 = x*(a+ux) = x*T2
+	BN_init(&T4);
 	BN_CTX_init(ctx);
 
-	BN_mul(&T2, &x, &T2, ctx);
+	printf("calc T4\n");
+	BN_mul(&T4, &x, &T2, ctx);
 
 	// T1 = k*g (k=C3)
 	BN_init(&T1);
@@ -204,16 +213,19 @@ void srp_client_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, unsigned 
 	BN_add(&C3, &C3, &C1);
 	BN_add(&C3, &C3, &C1);
 
+	printf("calc T1\n");
 	BN_mul(&T1, &C3, i_g, ctx);
 
-	// T1 = k*g^(x*(a+u*x))
-	//    = T1 ^ T2
+	// T2 = k*g^(x*(a+u*x))
+	//    = T1 ^ T4
 	BN_CTX_init(ctx);
-	BN_exp(&T1, &T1, &T2, ctx);
+	printf("calc T2\n");
+	BN_mod_exp(&T2, &T1, &T4, i_N, ctx);
 
 	// S = (T3 - T1) % N
 	BN_CTX_init(ctx);
-	BN_mod_sub(o_S, &T3, &T1, i_N, ctx);
+	printf("calc S\n");
+	BN_mod_sub(o_S, &T3, &T2, i_N, ctx);
 
 	// convert S to string
 	unsigned int len = BN_num_bytes(o_S);
