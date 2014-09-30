@@ -189,32 +189,34 @@ int main(int argc, char *argv[])
 
 	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];
 
-	printf("server calc S\n");
+// 	printf("server calc S\n");
 	srp_server_calc_session_key(str_hash, &sS, &bA, &bb, &bB, &v, &p);
 	printf("[s5c4] server: sha256(S) = %s\n", str_hash);
 	
 	memset(str_hash, 0, 2*SHA256_DIGEST_LENGTH);
-	printf("client calc S\n");
+// 	printf("client calc S\n");
 	srp_client_calc_session_key(str_hash, &cS, srp_salt, srp_pass, &ba, &bA, &bB, &g, &p);
 	printf("[s5c4] client: sha256(S) = %s\n", str_hash);
+
+	// cakc HMAC_SHA256(&cS, salt)
 
 // 	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];
 // 	srp_generate_salted_password_hash(&v, str_hash, srp_salt, srp_pass);
 
 	dh_clear(&p, &g);
 
-// 	BN_free(&p);
-// 	BN_free(&g);
-// 	BN_free(&ba);
-// 	BN_free(&bA);
-// 	BN_free(&bb);
-// 	BN_free(&bB);
-// 	BN_free(&bs1);
-// 	BN_free(&bs2);
-// 	BN_free(&v);
-// 	BN_free(&cS);
-// 	BN_free(&sS);
-// 	BN_free(&bn1);
-// 	BN_free(&g2);
+	BN_free(&p);
+	BN_free(&g);
+	BN_free(&ba);
+	BN_free(&bA);
+	BN_free(&bb);
+	BN_free(&bB);
+	BN_free(&bs1);
+	BN_free(&bs2);
+	BN_free(&v);
+// 	BN_free(&cS);	// SIGABRT -> invalid pointer?! wtf?!
+	BN_free(&sS);
+	BN_free(&bn1);
+	BN_free(&g2);
 	return 0;
 }

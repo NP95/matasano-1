@@ -4,7 +4,7 @@
 #include "../include/srp.h"
 
 /** SRP Helper Funcs **/
-void srp_generate_salted_password_hash(BIGNUM *o_intHash, unsigned char *o_strHash, unsigned char *i_salt, unsigned char *i_password)
+void srp_generate_salted_password_hash(BIGNUM *o_intHash, unsigned char *o_strHash, const unsigned char *i_salt, const unsigned char *i_password)
 {
 	unsigned char hash_in[1024];
 	unsigned char hash[SHA256_DIGEST_LENGTH];
@@ -14,6 +14,8 @@ void srp_generate_salted_password_hash(BIGNUM *o_intHash, unsigned char *o_strHa
 	// str = Salt | Pass
 	strcpy(hash_in, i_salt);
 	strcat(hash_in, i_password);
+// 	memcpy(hash_in, i_salt, strlen(i_salt)*sizeof(unsigned char));
+// 	memcpy(hash_in+strlen(i_salt)*sizeof(unsigned char), i_password, strlen(i_password)*sizeof(unsigned char));
 
 	// generate sha256 hash
 	SHA256_CTX sha256;
@@ -30,6 +32,8 @@ void srp_generate_salted_password_hash(BIGNUM *o_intHash, unsigned char *o_strHa
 	// convert hash to int (BIGNUM)
 	// x = int(SHA256_hash)
 	BN_hex2bn(&o_intHash, o_strHash);
+
+	return;
 }
 
 void srp_generate_pubkey_hash(BIGNUM *o_intHash, BIGNUM *i_A, BIGNUM *i_B)
@@ -37,17 +41,21 @@ void srp_generate_pubkey_hash(BIGNUM *o_intHash, BIGNUM *i_A, BIGNUM *i_B)
 	unsigned int i;
 
 	// convert A to string
-	unsigned int len = BN_num_bytes(i_A);
-	unsigned char strA[2*len];
-	strncpy(strA, BN_bn2hex(i_A), 2*len);
+	unsigned char *strA = BN_bn2hex(i_A);
 
 	// convert B to string
-	len = BN_num_bytes(i_B);
-	unsigned char strB[2*len];
-	strncpy(strB, BN_bn2hex(i_B), 2*len);
+	unsigned char *strB = BN_bn2hex(i_B);
 
 	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];
 	srp_generate_salted_password_hash(o_intHash, str_hash, strA, strB);
+
+	OPENSSL_free(strA);
+// 	OPENSSL_free(strB);	// SIGABRT -> invalid pointer?! wtf?!
+}
+
+unsigned int srp_generate_session_hmac(unsigned char *o_hmac, unsigned char *i_session_key, unsigned char i_salt)
+{
+	
 }
 
 /** SRP Protocol Simulation Funcs **/
@@ -131,15 +139,14 @@ void srp_server_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, BIGNUM *i
 
 	// convert S to string
 // 	printf("toString(S)\n");
-	unsigned int len = BN_num_bytes(o_S);
-	unsigned char strS[2*len];
-	strncpy(strS, BN_bn2hex(o_S), 2*len);
+	unsigned char *strS = BN_bn2hex(o_S);
 
 	// generate SHA256(S)
 // 	printf("hash(S)\n");
 	srp_generate_salted_password_hash(&T2, o_hash_S, "", strS);
 // 	printf("done\n");
 
+	OPENSSL_free(strS);
 	BN_clear_free(&u);
 	BN_clear_free(&T1);
 	BN_clear_free(&T2);
@@ -195,13 +202,12 @@ void srp_client_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, unsigned 
 	BN_mod_exp(o_S, &T3, &T2, i_N, ctx);
 
 	// convert S to string
-	unsigned int len = BN_num_bytes(o_S);
-	unsigned char strS[2*len];
-	strncpy(strS, BN_bn2hex(o_S), 2*len);
+	unsigned char *strS = BN_bn2hex(o_S);
 
 	// generate SHA256(S)
 	srp_generate_salted_password_hash(&T2, o_hash_S, "", strS);
 
+	OPENSSL_free(strS);
 	BN_clear_free(&u);
 	BN_clear_free(&x);
 	BN_clear_free(&C3);
