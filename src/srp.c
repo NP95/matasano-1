@@ -10,6 +10,7 @@ void srp_generate_salted_password_hash(BIGNUM *o_intHash, unsigned char *o_strHa
 	unsigned char hash[SHA256_DIGEST_LENGTH];
 	unsigned int i;
 
+	memset(hash_in, 0, 1024);
 	// str = Salt | Pass
 	strcpy(hash_in, i_salt);
 	strcat(hash_in, i_password);
@@ -17,7 +18,7 @@ void srp_generate_salted_password_hash(BIGNUM *o_intHash, unsigned char *o_strHa
 	// generate sha256 hash
 	SHA256_CTX sha256;
 	SHA256_Init(&sha256);
-	SHA256_Update(&sha256, hash_in, strlen(hash_in));
+	SHA256_Update(&sha256, hash_in, 1024);
 	SHA256_Final(hash, &sha256);
 	for(i = 0; i<SHA256_DIGEST_LENGTH; i++) {
 		sprintf(o_strHash + (2*i), "%02X", hash[i]);
@@ -69,26 +70,20 @@ void srp_server_init(unsigned char *o_salt, BIGNUM *o_v, BIGNUM *o_b, BIGNUM *o_
 
 	// v = g^x % N
 	BN_CTX *ctx = BN_CTX_new();
-	BN_CTX_init(ctx);
 
 	BN_mod_exp(o_v, i_g, &x, i_N, ctx);
 
 	// calculate B = k*v      + (g^b % N)
 	//               3*v (B3) + dh pub key (B2)
-	BIGNUM B2, B3, C1, C3;
+	BIGNUM B2, B3, C3;
 	BN_init(&B2);
 	BN_init(&B3);
-	BN_init(&C1);
 	BN_init(&C3);
 
-	// C1 = 1, C3 = 1; 2*(C3 = C3 + C1)
-	BN_one(&C1);
-	BN_one(&C3);
-	BN_add(&C3, &C3, &C1);
-	BN_add(&C3, &C3, &C1);
+	// C3 = 3
+	BN_set_word(&C3, 3);
 
 	// B3 = 3*v
-	BN_CTX_init(ctx);
 	BN_mul(&B3, &C3, o_v, ctx);
 
 	// B2 = dh pub key
@@ -97,6 +92,10 @@ void srp_server_init(unsigned char *o_salt, BIGNUM *o_v, BIGNUM *o_b, BIGNUM *o_
 	// B = B3 + B2
 	BN_add(o_B, &B3, &B2);
 
+	BN_clear_free(&x);
+	BN_clear_free(&B2);
+	BN_clear_free(&B3);
+	BN_clear_free(&C3);
 	BN_CTX_free(ctx);
 }
 
@@ -107,63 +106,56 @@ void srp_client_init(BIGNUM *o_a, BIGNUM *o_A, BIGNUM *i_g, BIGNUM *i_N)
 
 void srp_server_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, BIGNUM *i_A, BIGNUM *i_b, BIGNUM *i_B, BIGNUM *i_v, BIGNUM *i_N)
 {
-	BIGNUM u, T1, T2, T3;
+	BIGNUM u, T1, T2;
 	BN_init(&u);
+	BN_init(&T1);
+	BN_init(&T2);
 	
 	// calc u
 	srp_generate_pubkey_hash(&u, i_A, i_B);
 
 	BN_CTX *ctx = BN_CTX_new();
-	// S = (A*v^u)^b % N = (A^b * v^(u*b)) % N
-	//                   =  (T1  * T3 ) % N
-	
-	// T1 = A^b
-	BN_init(&T1);
 
-	BN_CTX_init(ctx);
-	printf("calc T1\n");
-	BN_mod_exp(&T1, i_A, i_b, i_N, ctx);
+	// S = (A*v^u)^b % N
+	// T1 = v^u
+// 	printf("calc T1\n");
+	BN_mod_exp(&T1, i_v, &u, i_N, ctx);
 
-	// T2 = u*b
-	BN_init(&T2);
+	// T2 = A*v^u
+// 	printf("calc T2\n");
+	BN_mod_mul(&T2, i_A, &T1, i_N, ctx);
 
-	BN_CTX_init(ctx);
-	printf("calc T2\n");
-	BN_mul(&T2, &u, i_b, ctx);
-
-	// T3 = v ^ u*b = v ^ T2
-	BN_init(&T3);
-	BN_CTX_init(ctx);
-	printf("calc T3\n");
-	BN_mod_exp(&T3, i_v, &T2, i_N, ctx);
-
-	// S = ( T1 * T3 ) % N
-	printf("calc S\n");
-	BN_mod_mul(o_S, &T1, &T3, i_N, ctx);
+	// S = T2^b % N
+// 	printf("calc S\n");
+	BN_mod_exp(o_S, &T2, i_b, i_N, ctx);
 
 	// convert S to string
+// 	printf("toString(S)\n");
 	unsigned int len = BN_num_bytes(o_S);
 	unsigned char strS[2*len];
 	strncpy(strS, BN_bn2hex(o_S), 2*len);
 
 	// generate SHA256(S)
+// 	printf("hash(S)\n");
 	srp_generate_salted_password_hash(&T2, o_hash_S, "", strS);
+// 	printf("done\n");
 
+	BN_clear_free(&u);
+	BN_clear_free(&T1);
+	BN_clear_free(&T2);
 	BN_CTX_free(ctx);
 }
 
 void srp_client_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, unsigned char *i_salt, unsigned char *i_password, BIGNUM *i_a, BIGNUM *i_A, BIGNUM *i_B, BIGNUM *i_g, BIGNUM *i_N)
 {
-	// u = SHA256(A|B)
-	BIGNUM u;
+	BIGNUM u, x;
 	BN_init(&u);
+	BN_init(&x);
 
+	// u = SHA256(A|B)
 	srp_generate_pubkey_hash(&u, i_A, i_B);
 
 	// x = SHA256(salt|password)
-	BIGNUM x;
-	BN_init(&x);
-
 	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];	// tmp var
 	srp_generate_salted_password_hash(&x, str_hash, i_salt, i_password);
 
@@ -171,61 +163,36 @@ void srp_client_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, unsigned 
 	//   = ( B^(a + u*x) - k*g^(x*(a + u*x)) ) % N
 	//   = ( B^T2 - k*g^(x*T2) ) % N
 	//   = (   T3 -  T1 ^ T2 ) % N
-	
-	BIGNUM T1, T2, T3, T4;
+	BIGNUM T1, T2, T3, T4, C3;
+
+	BN_init(&C3);
+	BN_init(&T1);
+	BN_init(&T2);
+	BN_init(&T3);
+	BN_init(&T4);
+
+	BN_set_word(&C3, 3);
+
 	BN_CTX *ctx = BN_CTX_new();
 
 	// T1 = u*x
-	BN_init(&T1);
-	BN_CTX_init(ctx);
-
-	printf("calc T1\n");
-	BN_mul(&T1, &u, &x, ctx);
+	BN_mod_mul(&T1, &u, &x, i_N, ctx);
 
 	// T2 = a + u*x = a + T1
-	BN_init(&T2);
-	
-	printf("calc T2\n");
-	BN_add(&T2, i_a, &T1);
+	BN_mod_add(&T2, i_a, &T1, i_N, ctx);
 
-	// T3 = B^(a + u*x) = B^T2
-	BN_init(&T3);
-	BN_CTX_init(ctx);
+	// T3 = g^x
+	BN_mod_exp(&T3, i_g, &x, i_N, ctx);
 
-	printf("calc T3\n");
-	BN_mod_exp(&T3, i_B, &T2, i_N, ctx);
+	// T4 = k*g^x = k*T3
+	BN_mod_mul(&T4, &C3, &T3, i_N, ctx);
 
-	// T4 = x*(a+ux) = x*T2
-	BN_init(&T4);
-	BN_CTX_init(ctx);
+	// T3 = B - k*g^x = B - T4
+	BN_mod_sub(&T3, i_B, &T4, i_N, ctx);
 
-	printf("calc T4\n");
-	BN_mul(&T4, &x, &T2, ctx);
-
-	// T1 = k*g (k=C3)
-	BN_init(&T1);
-	BN_CTX_init(ctx);
-
-	// C1 = 1, C3 = 1; 2*(C3 = C3 + C1)
-	BIGNUM C1, C3;
-	BN_one(&C1);
-	BN_one(&C3);
-	BN_add(&C3, &C3, &C1);
-	BN_add(&C3, &C3, &C1);
-
-	printf("calc T1\n");
-	BN_mul(&T1, &C3, i_g, ctx);
-
-	// T2 = k*g^(x*(a+u*x))
-	//    = T1 ^ T4
-	BN_CTX_init(ctx);
-	printf("calc T2\n");
-	BN_mod_exp(&T2, &T1, &T4, i_N, ctx);
-
-	// S = (T3 - T1) % N
-	BN_CTX_init(ctx);
-	printf("calc S\n");
-	BN_mod_sub(o_S, &T3, &T2, i_N, ctx);
+	// S = T3 ^ (a+u*x)
+	//    = T3 ^ T2
+	BN_mod_exp(o_S, &T3, &T2, i_N, ctx);
 
 	// convert S to string
 	unsigned int len = BN_num_bytes(o_S);
@@ -235,5 +202,12 @@ void srp_client_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, unsigned 
 	// generate SHA256(S)
 	srp_generate_salted_password_hash(&T2, o_hash_S, "", strS);
 
+	BN_clear_free(&u);
+	BN_clear_free(&x);
+	BN_clear_free(&C3);
+	BN_clear_free(&T1);
+	BN_clear_free(&T2);
+	BN_clear_free(&T3);
+	BN_clear_free(&T4);
 	BN_CTX_free(ctx);
 }

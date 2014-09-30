@@ -27,8 +27,8 @@ int main(int argc, char *argv[])
 	BIGNUM p, g;
 	BIGNUM ba, bA, bb, bB, bs1, bs2;
 
-	dh_init(&p, &g);
-
+	BN_init(&g);
+	BN_init(&p);
 	BN_init(&ba);
 	BN_init(&bA);
 	BN_init(&bb);
@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
 	unsigned char c_s1[20], c_s2[20];
 	unsigned int i;
 
+	dh_init(&p, &g);
 	dh_generate_keypair(&ba, &bA, &g, &p);
 	dh_generate_keypair(&bb, &bB, &g, &p);
 	dh_generate_session_key(c_s1, &bs1, &ba, &bB, &p);
@@ -183,9 +184,7 @@ int main(int argc, char *argv[])
 	BN_init(&cS);
 	BN_init(&sS);
 
-	printf("srv init\n");
 	srp_server_init(srp_salt, &v, &bb, &bB, srp_pass, &g, &p);
-	printf("clt init\n");
 	srp_client_init(&ba, &bA, &g, &p);
 
 	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];
@@ -204,5 +203,18 @@ int main(int argc, char *argv[])
 
 	dh_clear(&p, &g);
 
+// 	BN_free(&p);
+// 	BN_free(&g);
+// 	BN_free(&ba);
+// 	BN_free(&bA);
+// 	BN_free(&bb);
+// 	BN_free(&bB);
+// 	BN_free(&bs1);
+// 	BN_free(&bs2);
+// 	BN_free(&v);
+// 	BN_free(&cS);
+// 	BN_free(&sS);
+// 	BN_free(&bn1);
+// 	BN_free(&g2);
 	return 0;
 }
