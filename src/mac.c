@@ -70,19 +70,19 @@ unsigned int md4_generate_padding(unsigned char *padding, unsigned long message_
 	return pad_len;
 }
 
-unsigned int sha1_hmac(unsigned int *hmac, unsigned char *msg, unsigned int msg_len, unsigned char *key, unsigned int key_len)
-{
-	// HMAC = H(key ^ opad, H(key ^ ipad, msg))
-	// ipad = 0x36
-	// opad = 0x5c
-	const unsigned int hash_blocklen = 64;
-	unsigned int hmac_key[5];
-
-	// prepare key
-	if(key_len > hash_blocklen) {
-		sha1_secret_prefix_mac(hmac_key, key, key_len, NULL, 0);
-	}
-}
+// unsigned int sha1_hmac(unsigned int *hmac, unsigned char *msg, unsigned int msg_len, unsigned char *key, unsigned int key_len)
+// {
+// 	// HMAC = H(key ^ opad, H(key ^ ipad, msg))
+// 	// ipad = 0x36
+// 	// opad = 0x5c
+// 	const unsigned int hash_blocklen = 64;
+// 	unsigned int hmac_key[5];
+// 
+// 	// prepare key
+// 	if(key_len > hash_blocklen) {
+// 		sha1_secret_prefix_mac(hmac_key, key, key_len, NULL, 0);
+// 	}
+// }
 
 unsigned int sha1_secret_prefix_mac(unsigned int *mac, unsigned char *msg, unsigned int msg_len, unsigned char *key, unsigned int key_len)
 {
@@ -139,6 +139,21 @@ unsigned int sha1_secret_prefix_mac_auth(unsigned int *mac, unsigned char *msg, 
 	}
 
 	return 1;
+}
+
+unsigned int sha256_secret_prefix_mac(unsigned char *mac, unsigned char *msg, unsigned int msg_len, unsigned char *key, unsigned int key_len)
+{
+	unsigned int hmac_len = 0;
+
+	HMAC_CTX ctx;
+	HMAC_CTX_init(&ctx);
+
+	HMAC_Init_ex(&ctx, key, key_len, EVP_sha256(), NULL);
+	HMAC_Update(&ctx, msg, msg_len);
+	HMAC_Final(&ctx, mac, &hmac_len);
+	HMAC_CTX_cleanup(&ctx);
+
+	return hmac_len;
 }
 
 unsigned int sha1_generate_padding(unsigned char *padding, unsigned long message_len)

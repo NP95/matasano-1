@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include "../include/dh.h"
+#include "../include/mac.h"
 #include "../include/srp.h"
 
 int main(int argc, char *argv[])
@@ -189,19 +190,39 @@ int main(int argc, char *argv[])
 
 	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];
 
+	unsigned char hmac_s[SHA256_DIGEST_LENGTH];
+	unsigned int hmac_s_len;
+	unsigned char hmac_c[SHA256_DIGEST_LENGTH];
+	unsigned int hmac_c_len;
 // 	printf("server calc S\n");
 	srp_server_calc_session_key(str_hash, &sS, &bA, &bb, &bB, &v, &p);
 	printf("[s5c4] server: sha256(S) = %s\n", str_hash);
+	// calc HMAC_SHA256(&cS, salt)
+	hmac_s_len = sha256_secret_prefix_mac(hmac_s, str_hash, strlen(str_hash), srp_salt, strlen(srp_salt));
 	
 	memset(str_hash, 0, 2*SHA256_DIGEST_LENGTH);
 // 	printf("client calc S\n");
 	srp_client_calc_session_key(str_hash, &cS, srp_salt, srp_pass, &ba, &bA, &bB, &g, &p);
 	printf("[s5c4] client: sha256(S) = %s\n", str_hash);
+	// calc HMAC_SHA256(&cS, salt)
+	hmac_c_len = sha256_secret_prefix_mac(hmac_c, str_hash, strlen(str_hash), srp_salt, strlen(srp_salt));
 
-	// cakc HMAC_SHA256(&cS, salt)
+	printf("[s5c4] server: HMAC(K,Salt) = ");
+	for(i=0; i<hmac_s_len; i++) {
+		printf("%02x", hmac_s[i]);
+	}
+	printf("\n");
 
-// 	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];
-// 	srp_generate_salted_password_hash(&v, str_hash, srp_salt, srp_pass);
+	printf("[s5c4] client: HMAC(K,Salt) = ");
+	for(i=0; i<hmac_c_len; i++) {
+		printf("%02x", hmac_c[i]);
+	}
+	printf("\n");
+
+	if((hmac_s_len == hmac_c_len) && !strncmp(hmac_s, hmac_c, hmac_s_len))
+		printf("[s5c4] server: Client HMAC-SHA256 successfully validated!\n");
+	else
+		printf("[s5c4] server: Client HMAC-SHA256 *NOT* validated!\n");
 
 	dh_clear(&p, &g);
 
