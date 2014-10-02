@@ -224,6 +224,47 @@ int main(int argc, char *argv[])
 	else
 		printf("[s5c4] server: Client HMAC-SHA256 *NOT* validated!\n");
 
+	/**   SET 5 CHALLENGE 37   **/
+	/** SRP MALICIOUS A ATTACK **/
+	// we're skipping the networking part here and just call the simulator
+	// functions from srp.c
+	
+	// server init (done in #36)
+	// client init (done in #36)
+	// now modify A (bA) to be 0, N, c*N
+// 	BN_zero(&bA);	// A = 0
+	BN_copy(&bA, &p);	// A = N (doesn't matter if we use N, 2*N, c*N)
+
+	// send to server and let server do its calculations
+	srp_server_calc_session_key(str_hash, &sS, &bA, &bb, &bB, &v, &p);
+	printf("[s5c5] server: sha256(S=0) = %s\n", str_hash);
+	// calc HMAC_SHA256(&cS, salt)
+	hmac_s_len = sha256_secret_prefix_mac(hmac_s, str_hash, strlen(str_hash), srp_salt, strlen(srp_salt));
+	
+	// client now authenticates with K = HMAC_SHA256(0, salt)
+	// SHA256(S=0)
+	srp_generate_salted_password_hash(&cS, str_hash, "", "0");
+	printf("[s5c5] client: sha256(S=0) = %s\n", str_hash);
+	// calc HMAC_SHA256(K, salt)
+	hmac_c_len = sha256_secret_prefix_mac(hmac_c, str_hash, strlen(str_hash), srp_salt, strlen(srp_salt));
+	
+	printf("[s5c5] server: HMAC(K,Salt) = ");
+	for(i=0; i<hmac_s_len; i++) {
+		printf("%02x", hmac_s[i]);
+	}
+	printf("\n");
+
+	printf("[s5c5] client: HMAC(K,Salt) = ");
+	for(i=0; i<hmac_c_len; i++) {
+		printf("%02x", hmac_c[i]);
+	}
+	printf("\n");
+
+	if((hmac_s_len == hmac_c_len) && !strncmp(hmac_s, hmac_c, hmac_s_len))
+		printf("[s5c5] server: forged client HMAC-SHA256 successfully validated!\n");
+	else
+		printf("[s5c5] server: forged client HMAC-SHA256 *NOT* validated!\n");
+
 	dh_clear(&p, &g);
 
 	BN_free(&p);
