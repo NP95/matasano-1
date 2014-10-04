@@ -212,3 +212,124 @@ void srp_client_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, unsigned 
 	BN_clear_free(&T4);
 	BN_CTX_free(ctx);
 }
+
+/** Simplified SRP protocol simulation funcs **/
+void ssrp_server_init(unsigned char *o_salt, BIGNUM *o_v, BIGNUM *o_b, BIGNUM *o_B, BIGNUM *o_u, unsigned char *i_password, BIGNUM *i_g, BIGNUM *i_N)
+{
+	unsigned char hash_in[1024];
+	unsigned char hash[SHA256_DIGEST_LENGTH];
+	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];
+	unsigned int salt, i;
+
+	// needs prior seeding calling srand() apropriately
+	salt = rand();
+	snprintf(o_salt, 9, "%08X", salt);
+	
+	BIGNUM x;
+	BN_init(&x);
+
+	// str = Salt | Pass
+	srp_generate_salted_password_hash(&x, str_hash, o_salt, i_password);
+
+	// v = g^x % N
+	BN_CTX *ctx = BN_CTX_new();
+
+	BN_mod_exp(o_v, i_g, &x, i_N, ctx);
+
+	// B = dh pub key
+	dh_generate_keypair(o_b, o_B, i_g, i_N);
+
+	// generate random 128 bit number
+	// !!proper seeding needed here!!
+	unsigned int rseed = time(NULL);
+	void *buf = &rseed;
+	RAND_seed(buf, 9);
+
+	BN_rand(o_u, 128, 0, 0);
+
+	BN_clear_free(&x);
+	BN_CTX_free(ctx);
+}
+
+void ssrp_server_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, BIGNUM *i_A, BIGNUM *i_b, BIGNUM *i_u, BIGNUM *i_v, BIGNUM *i_N)
+{
+	BIGNUM T1, T2;
+	BN_init(&T1);
+	BN_init(&T2);
+	
+	BN_CTX *ctx = BN_CTX_new();
+
+	// S = (A*v^u)^b % N
+	// T1 = v^u
+// 	printf("calc T1\n");
+	BN_mod_exp(&T1, i_v, i_u, i_N, ctx);
+
+	// T2 = A*v^u
+// 	printf("calc T2\n");
+	BN_mod_mul(&T2, i_A, &T1, i_N, ctx);
+
+	// S = T2^b % N
+// 	printf("calc S\n");
+	BN_mod_exp(o_S, &T2, i_b, i_N, ctx);
+
+	// convert S to string
+// 	printf("toString(S)\n");
+	unsigned char *strS = BN_bn2hex(o_S);
+
+	// generate SHA256(S)
+// 	printf("hash(S)\n");
+	srp_generate_salted_password_hash(&T2, o_hash_S, "", strS);
+// 	printf("done\n");
+
+	OPENSSL_free(strS);
+	BN_clear_free(&T1);
+	BN_clear_free(&T2);
+	BN_CTX_free(ctx);
+}
+
+
+void ssrp_client_init(BIGNUM *o_a, BIGNUM *o_A, BIGNUM *i_g, BIGNUM *i_N)
+{
+	dh_generate_keypair(o_a, o_A, i_g, i_N);
+}
+
+void ssrp_client_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, unsigned char *i_salt, unsigned char *i_password, BIGNUM *i_a, BIGNUM *i_B, BIGNUM *i_u, BIGNUM *i_N)
+{
+	BIGNUM x;
+	BN_init(&x);
+
+	// x = SHA256(salt|password)
+	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];	// tmp var
+	srp_generate_salted_password_hash(&x, str_hash, i_salt, i_password);
+
+	// S = B ^ (a + u*x) % N
+	BIGNUM T1, T2;
+
+	BN_init(&T1);
+	BN_init(&T2);
+
+	BN_CTX *ctx = BN_CTX_new();
+
+	// T1 = u*x
+	BN_mod_mul(&T1, i_u, &x, i_N, ctx);
+
+	// T2 = a + u*x = a + T1
+	BN_mod_add(&T2, i_a, &T1, i_N, ctx);
+
+	// S = B ^ (a+u*x)
+	//   = B ^ T2
+	BN_mod_exp(o_S, i_B, &T2, i_N, ctx);
+
+	// convert S to string
+	unsigned char *strS = BN_bn2hex(o_S);
+
+	// generate SHA256(S)
+	srp_generate_salted_password_hash(&T2, o_hash_S, "", strS);
+
+	OPENSSL_free(strS);
+	BN_clear_free(&x);
+	BN_clear_free(&T1);
+	BN_clear_free(&T2);
+	BN_CTX_free(ctx);
+}
+

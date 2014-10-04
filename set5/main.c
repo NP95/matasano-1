@@ -56,6 +56,9 @@ int main(int argc, char *argv[])
 		printf("%02x", c_s2[i]);
 	printf("'\n");
 
+	BN_free(&bs1);
+	BN_free(&bs2);
+
 	/**  SET 5 CHALLENGE 34  **/
 	/** DH-KE FIXED KEY MITM **/
 
@@ -241,8 +244,8 @@ int main(int argc, char *argv[])
 	// calc HMAC_SHA256(&cS, salt)
 	hmac_s_len = sha256_secret_prefix_mac(hmac_s, str_hash, strlen(str_hash), srp_salt, strlen(srp_salt));
 	
-	// client now authenticates with K = HMAC_SHA256(0, salt)
-	// SHA256(S=0)
+	// client now authenticates with HMAC_SHA256(K=SHA256(S=0), salt)
+	// K=SHA256(S=0)
 	srp_generate_salted_password_hash(&cS, str_hash, "", "0");
 	printf("[s5c5] client: sha256(S=0) = %s\n", str_hash);
 	// calc HMAC_SHA256(K, salt)
@@ -265,6 +268,21 @@ int main(int argc, char *argv[])
 	else
 		printf("[s5c5] server: forged client HMAC-SHA256 *NOT* validated!\n");
 
+	/**       SET 5 CHALLENGE 38       **/
+	/** SSRP OFFLINE DICTIONARY ATTACK **/
+	BIGNUM u;
+	BN_init(&u);
+
+	memset(srp_salt, 0, 9*sizeof(unsigned char));
+
+	ssrp_server_init(srp_salt, &v, &bb, &bB, &u, srp_pass, &g, &p);
+	ssrp_client_init(&ba, &bA, &g, &p);
+
+	ssrp_server_calc_session_key(str_hash, &sS, &bA, &bb, &u, &v, &p);
+	printf("[s5c6] server: sha256(S=0) = %s\n", str_hash);
+	ssrp_client_calc_session_key(str_hash, &cS, srp_salt, srp_pass, &ba, &bB, &u, &p);
+	printf("[s5c6] client: sha256(S=0) = %s\n", str_hash);
+
 	dh_clear(&p, &g);
 
 	BN_free(&p);
@@ -273,9 +291,8 @@ int main(int argc, char *argv[])
 	BN_free(&bA);
 	BN_free(&bb);
 	BN_free(&bB);
-	BN_free(&bs1);
-	BN_free(&bs2);
-	BN_free(&v);
+// 	BN_free(&u);	// SIGABRT -> invalid pointer?! wtf?!
+	BN_free(&v);	// SIGABRT -> invalid pointer?! wtf?!
 // 	BN_free(&cS);	// SIGABRT -> invalid pointer?! wtf?!
 	BN_free(&sS);
 	BN_free(&bn1);
