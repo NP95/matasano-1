@@ -25,26 +25,26 @@ int main(int argc, char *argv[])
 	printf("[s5c1] *smallint* a = %ld, A = %ld, b = %ld, B = %ld, s = %ld ?= %ld\n", a, A, b, B, s1, s2);
 
 	// bigint
-	BIGNUM p, g;
-	BIGNUM ba, bA, bb, bB, bs1, bs2;
+	BIGNUM *p, *g;
+	BIGNUM *ba, *bA, *bb, *bB, *bs1, *bs2;
 
-	BN_init(&g);
-	BN_init(&p);
-	BN_init(&ba);
-	BN_init(&bA);
-	BN_init(&bb);
-	BN_init(&bB);
-	BN_init(&bs1);
-	BN_init(&bs2);
+	g = BN_new();
+	p = BN_new();
+	ba = BN_new();
+	bA = BN_new();
+	bb = BN_new();
+	bB = BN_new();
+	bs1 = BN_new();
+	bs2 = BN_new();
 
 	unsigned char c_s1[20], c_s2[20];
 	unsigned int i;
 
-	dh_init(&p, &g);
-	dh_generate_keypair(&ba, &bA, &g, &p);
-	dh_generate_keypair(&bb, &bB, &g, &p);
-	dh_generate_session_key(c_s1, &bs1, &ba, &bB, &p);
-	dh_generate_session_key(c_s2, &bs2, &bb, &bA, &p);
+	dh_init(p, g);
+	dh_generate_keypair(ba, bA, g, p);
+	dh_generate_keypair(bb, bB, g, p);
+	dh_generate_session_key(c_s1, bs1, ba, bB, p);
+	dh_generate_session_key(c_s2, bs2, bb, bA, p);
 
 	printf("[s5c1] *bignum* s1 = '");
 // 	BN_print_fp(stdout, &bs1);
@@ -56,23 +56,26 @@ int main(int argc, char *argv[])
 		printf("%02x", c_s2[i]);
 	printf("'\n");
 
-	BN_free(&bs1);
-	BN_free(&bs2);
+	BN_free(ba);
+	BN_free(bA);
+	BN_free(bb);
+	BN_free(bB);
+	BN_free(bs1);
+	BN_free(bs2);
 
 	/**  SET 5 CHALLENGE 34  **/
 	/** DH-KE FIXED KEY MITM **/
-
 	unsigned char c_p[1024];
 	unsigned char c_g[1024];
 	unsigned char c_A[1024];
 	unsigned char c_B[1024];
 
-	BN_init(&ba);
-	BN_init(&bA);
+	ba = BN_new();
+	bA = BN_new();
 
 	// M -> B: p, g, p
 	printf("[s5c2] M -> B: p, g, p\n");
-	dhke_initiate(c_p, c_g, c_A, &ba, &bA, &p, &g);
+	dhke_initiate(c_p, c_g, c_A, ba, bA, p, g);
 
 	// M -> A: p
 	printf("[s5c2] M -> A: p\n");
@@ -81,7 +84,7 @@ int main(int argc, char *argv[])
 
 	// A -> B: cmsg, iv
 // 	dhke_initiate_finalize(c_s1, c_B, &ba, &p);
-	dhke_initiate_finalize(c_s1, c_p, &ba, &p);
+	dhke_initiate_finalize(c_s1, c_p, ba, p);
 
 	printf("[s5c2] *bignum* s1 = '");
 	for(i=0; i<20; i++)
@@ -116,6 +119,8 @@ int main(int argc, char *argv[])
 
 	printf("[s5c2] B recvd: msg = '%s'\n", p_out);
 
+	BN_free(ba);
+	BN_free(bA);
 	/**   SET 5 CHALLENGE 35   **/
 	/** DH-KE MALICIOUS G MITM **/
 	memset(c_g, 0, 1024);
@@ -125,12 +130,12 @@ int main(int argc, char *argv[])
 	memset(c_out, 0, 128);
 	memset(m_out, 0, 128);
 
-	BIGNUM bn1, g2;
+	BIGNUM *bn1, *g2;
 
-	BN_init(&ba);
-	BN_init(&bA);
-	BN_init(&bn1);
-	BN_init(&g2);
+	ba = BN_new();
+	bA = BN_new();
+	bn1 = BN_new();
+	g2 = BN_new();
 
 	// prepare malicious g'
 	// g' = 0; --> perform dhke_attack_zero_session_key()
@@ -141,19 +146,19 @@ int main(int argc, char *argv[])
 // 	BN_copy(&g2, &p);
 	// g' = p-1
 	printf("[s5c3] M sets and distributes g' = p-1\n");
-	BN_one(&bn1);
-	BN_sub(&g2, &p, &bn1);
+	BN_one(bn1);
+	BN_sub(g2, p, bn1);
 
 	// M -> B: p, g', A'
 	printf("[s5c3] A -> B: A'\n");
-	dhke_initiate(c_p, c_g, c_A, &ba, &bA, &p, &g2);
+	dhke_initiate(c_p, c_g, c_A, ba, bA, p, g2);
 
 	// M -> A: B'
 	printf("[s5c3] B -> A: B'\n");
 	dhke_initiate_reply(c_B, c_p, c_g, c_A, c_s2);
 
 	// A -> B: cmsg, iv
-	dhke_initiate_finalize(c_s1, c_B, &ba, &p);
+	dhke_initiate_finalize(c_s1, c_B, ba, p);
 
 	c_len = dhke_session_send(c_out, iv, plain_in, 16, c_s1);
 	printf("[s5c3] A -> B: cmsg = '");
@@ -174,38 +179,42 @@ int main(int argc, char *argv[])
 
 	printf("[s5c3] B recvd: msg = '%s'\n", p_out);
 
+	BN_free(ba);
+	BN_free(bA);
+	BN_free(bn1);
+	BN_free(g2);
+
 	/**   SET 5 CHALLENGE 36   **/
 	/** SECURE REMOTE PASSWORD **/
 	unsigned char srp_salt[9];
 	unsigned char *srp_pass = "GDFTHR OF GRUNGE"; // 16
-
-	BIGNUM v, sS, cS;
-	BN_init(&v);
-	BN_init(&ba);
-	BN_init(&bA);
-	BN_init(&bb);
-	BN_init(&bB);
-	BN_init(&cS);
-	BN_init(&sS);
-
-	srp_server_init(srp_salt, &v, &bb, &bB, srp_pass, &g, &p);
-	srp_client_init(&ba, &bA, &g, &p);
-
-	unsigned char str_hash[2*SHA256_DIGEST_LENGTH];
-
+	unsigned char str_hash[2*SHA256_DIGEST_LENGTH+1];
 	unsigned char hmac_s[SHA256_DIGEST_LENGTH];
 	unsigned int hmac_s_len;
 	unsigned char hmac_c[SHA256_DIGEST_LENGTH];
 	unsigned int hmac_c_len;
+
+	BIGNUM *v, *sS, *cS;
+	v = BN_new();
+	ba = BN_new();
+	bA = BN_new();
+	bb = BN_new();
+	bB = BN_new();
+	cS = BN_new();
+	sS = BN_new();
+
+	memset(srp_salt, 0, 9);
+	srp_server_init(srp_salt, v, bb, bB, srp_pass, g, p);
+	srp_client_init(ba, bA, g, p);
+
 // 	printf("server calc S\n");
-	srp_server_calc_session_key(str_hash, &sS, &bA, &bb, &bB, &v, &p);
+	srp_server_calc_session_key(str_hash, sS, bA, bb, bB, v, p);
 	printf("[s5c4] server: sha256(S) = %s\n", str_hash);
 	// calc HMAC_SHA256(&cS, salt)
 	hmac_s_len = sha256_secret_prefix_mac(hmac_s, str_hash, strlen(str_hash), srp_salt, strlen(srp_salt));
 	
-	memset(str_hash, 0, 2*SHA256_DIGEST_LENGTH);
-// 	printf("client calc S\n");
-	srp_client_calc_session_key(str_hash, &cS, srp_salt, srp_pass, &ba, &bA, &bB, &g, &p);
+	memset(str_hash, 0, 2*SHA256_DIGEST_LENGTH+1);
+	srp_client_calc_session_key(str_hash, cS, srp_salt, srp_pass, ba, bA, bB, g, p);
 	printf("[s5c4] client: sha256(S) = %s\n", str_hash);
 	// calc HMAC_SHA256(&cS, salt)
 	hmac_c_len = sha256_secret_prefix_mac(hmac_c, str_hash, strlen(str_hash), srp_salt, strlen(srp_salt));
@@ -227,26 +236,42 @@ int main(int argc, char *argv[])
 	else
 		printf("[s5c4] server: Client HMAC-SHA256 *NOT* validated!\n");
 
+	BN_free(v);
+	BN_free(ba);
+	BN_free(bA);
+	BN_free(bb);
+	BN_free(bB);
+	BN_free(cS);
+	BN_free(sS);
+
 	/**   SET 5 CHALLENGE 37   **/
 	/** SRP MALICIOUS A ATTACK **/
 	// we're skipping the networking part here and just call the simulator
 	// functions from srp.c
-	
-	// server init (done in #36)
-	// client init (done in #36)
+	ba = BN_new();
+	bA = BN_new();
+	bb = BN_new();
+	bB = BN_new();
+	sS = BN_new();
+	cS = BN_new();
+	v = BN_new();
+
+	srp_server_init(srp_salt, v, bb, bB, srp_pass, g, p);
+	srp_client_init(ba, bA, g, p);
+
 	// now modify A (bA) to be 0, N, c*N
-// 	BN_zero(&bA);	// A = 0
-	BN_copy(&bA, &p);	// A = N (doesn't matter if we use N, 2*N, c*N)
+// 	BN_zero(bA);	// A = 0
+	BN_copy(bA, p);	// A = N (doesn't matter if we use N, 2*N, c*N)
 
 	// send to server and let server do its calculations
-	srp_server_calc_session_key(str_hash, &sS, &bA, &bb, &bB, &v, &p);
+	srp_server_calc_session_key(str_hash, sS, bA, bb, bB, v, p);
 	printf("[s5c5] server: sha256(S=0) = %s\n", str_hash);
 	// calc HMAC_SHA256(&cS, salt)
 	hmac_s_len = sha256_secret_prefix_mac(hmac_s, str_hash, strlen(str_hash), srp_salt, strlen(srp_salt));
 	
 	// client now authenticates with HMAC_SHA256(K=SHA256(S=0), salt)
 	// K=SHA256(S=0)
-	srp_generate_salted_password_hash(&cS, str_hash, "", "0");
+	srp_generate_salted_password_hash(cS, str_hash, "", "0");
 	printf("[s5c5] client: sha256(S=0) = %s\n", str_hash);
 	// calc HMAC_SHA256(K, salt)
 	hmac_c_len = sha256_secret_prefix_mac(hmac_c, str_hash, strlen(str_hash), srp_salt, strlen(srp_salt));
@@ -268,34 +293,49 @@ int main(int argc, char *argv[])
 	else
 		printf("[s5c5] server: forged client HMAC-SHA256 *NOT* validated!\n");
 
+	BN_free(ba);
+	BN_free(bA);
+	BN_free(bb);
+	BN_free(bB);
+	BN_free(sS);
+	BN_free(cS);
+	BN_free(v);
+
 	/**       SET 5 CHALLENGE 38       **/
 	/** SSRP OFFLINE DICTIONARY ATTACK **/
-	BIGNUM u;
-	BN_init(&u);
+	BIGNUM *u;
+
+	u = BN_new();
+	v = BN_new();
+	ba = BN_new();
+	bA = BN_new();
+	bb = BN_new();
+	bB = BN_new();
+	cS = BN_new();
+	sS = BN_new();
 
 	memset(srp_salt, 0, 9*sizeof(unsigned char));
 
-	ssrp_server_init(srp_salt, &v, &bb, &bB, &u, srp_pass, &g, &p);
-	ssrp_client_init(&ba, &bA, &g, &p);
+	ssrp_server_init(srp_salt, v, bb, bB, u, srp_pass, g, p);
+	ssrp_client_init(ba, bA, g, p);
 
-	ssrp_server_calc_session_key(str_hash, &sS, &bA, &bb, &u, &v, &p);
+	ssrp_server_calc_session_key(str_hash, sS, bA, bb, u, v, p);
 	printf("[s5c6] server: sha256(S=0) = %s\n", str_hash);
-	ssrp_client_calc_session_key(str_hash, &cS, srp_salt, srp_pass, &ba, &bB, &u, &p);
+	memset(str_hash, 0, 2*SHA256_DIGEST_LENGTH);
+	ssrp_client_calc_session_key(str_hash, cS, srp_salt, srp_pass, ba, bB, u, p);
 	printf("[s5c6] client: sha256(S=0) = %s\n", str_hash);
 
-	dh_clear(&p, &g);
+	dh_clear(p, g);
 
-	BN_free(&p);
-	BN_free(&g);
-	BN_free(&ba);
-	BN_free(&bA);
-	BN_free(&bb);
-	BN_free(&bB);
-// 	BN_free(&u);	// SIGABRT -> invalid pointer?! wtf?!
-	BN_free(&v);	// SIGABRT -> invalid pointer?! wtf?!
-// 	BN_free(&cS);	// SIGABRT -> invalid pointer?! wtf?!
-	BN_free(&sS);
-	BN_free(&bn1);
-	BN_free(&g2);
+	BN_free(p);
+	BN_free(g);
+	BN_free(ba);
+	BN_free(bA);
+	BN_free(bb);
+	BN_free(bB);
+	BN_free(u);
+	BN_free(v);
+	BN_free(cS);
+	BN_free(sS);
 	return 0;
 }

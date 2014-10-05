@@ -43,7 +43,6 @@ void dh_clear(BIGNUM *p, BIGNUM *g)
 void dh_generate_keypair(BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *g, BIGNUM *p)
 {
 	BN_CTX *ctx = BN_CTX_new();
-// 	BN_CTX_init(ctx);
 
 	BN_rand_range(priv_key, p);
 	BN_mod_exp(pub_key, g, priv_key, p, ctx);
@@ -54,7 +53,6 @@ void dh_generate_keypair(BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *g, BIGNUM *p
 void dh_generate_session_key(unsigned char *c_session_key, BIGNUM *session_key, BIGNUM *priv_key, BIGNUM *pub_key, BIGNUM *p)
 {
 	BN_CTX *ctx = BN_CTX_new();
-// 	BN_CTX_init(ctx);
 
 	BN_mod_exp(session_key, pub_key, priv_key, p, ctx);
 
@@ -83,52 +81,46 @@ void dhke_initiate(unsigned char *c_p, unsigned char *c_g, unsigned char *c_pub_
 
 void dhke_initiate_finalize(unsigned char *sess_key, unsigned char *pub_key_reply, BIGNUM *priv_key, BIGNUM *p)
 {
-	BIGNUM s, B, *B2;
+	BIGNUM *s, *B;
 
-	BN_init(&B);
-	BN_init(&s);
+	s = BN_new();
+	B = BN_new();
 
-	B2 = &B;
+	BN_hex2bn(&B, pub_key_reply);
 
-	BN_hex2bn(&B2, pub_key_reply);
+	dh_generate_session_key(sess_key, s, priv_key, B, p);
 
-	dh_generate_session_key(sess_key, &s, priv_key, &B, p);
-
-	BN_clear(&B);
-	BN_clear(&s);
+	BN_clear_free(B);
+	BN_clear_free(s);
 }
 
 void dhke_initiate_reply(unsigned char *pub_key_reply, unsigned char *c_p, unsigned char *c_g, unsigned char *pub_key_init, unsigned char *sess_key)
 {
-	BIGNUM b, B, A, *A2, s, p, *p2, g, *g2;
-	BN_init(&b);
-	BN_init(&B);
-	BN_init(&A);
-	BN_init(&s);
-	BN_init(&p);
-	BN_init(&g);
+	BIGNUM *b, *B, *A, *s, *p, *g;
+	b = BN_new();
+	B = BN_new();
+	A = BN_new();
+	s = BN_new();
+	p = BN_new();
+	g = BN_new();
 
-	p2 = &p;
-	g2 = &g;
-	A2 = &A;
+	BN_hex2bn(&p, c_p);
+	BN_hex2bn(&g, c_g);
 
-	BN_hex2bn(&p2, c_p);
-	BN_hex2bn(&g2, c_g);
+	dh_generate_keypair(b, B, g, p);
 
-	dh_generate_keypair(&b, &B, &g, &p);
+	unsigned int len = BN_num_bytes(B);
+	strncpy(pub_key_reply, BN_bn2hex(B), 2*len);
+	BN_hex2bn(&A, pub_key_init);
 
-	unsigned int len = BN_num_bytes(&B);
-	strncpy(pub_key_reply, BN_bn2hex(&B), 2*len);
-	BN_hex2bn(&A2, pub_key_init);
+	dh_generate_session_key(sess_key, s, b, A, p);
 
-	dh_generate_session_key(sess_key, &s, &b, &A, &p);
-
-	BN_clear(&b);
-	BN_clear(&B);
-	BN_clear(&A);
-	BN_clear(&s);
-	BN_clear(&p);
-	BN_clear(&g);
+	BN_clear_free(b);
+	BN_clear_free(B);
+	BN_clear_free(A);
+	BN_clear_free(s);
+	BN_clear_free(p);
+	BN_clear_free(g);
 }
 
 unsigned int dhke_session_send(unsigned char *crypted_msg, unsigned char *iv, unsigned char *plain_msg, unsigned int plain_msg_len, unsigned char *sess_key)
