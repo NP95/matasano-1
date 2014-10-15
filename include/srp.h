@@ -23,5 +23,7 @@ void ssrp_server_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, BIGNUM *
 void ssrp_client_init(BIGNUM *o_a, BIGNUM *o_A, BIGNUM *i_g, BIGNUM *i_N);
 void ssrp_client_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, unsigned char *i_salt, unsigned char *i_password, BIGNUM *i_a, BIGNUM *i_B, BIGNUM *i_u, BIGNUM *i_N);
 
+int ssrp_dictionary_attack(unsigned char *o_passwd, unsigned char *i_client_hmac, unsigned char *i_dict_file, BIGNUM *i_A, BIGNUM *i_g, BIGNUM *i_N);
+
 #endif // __SRP_H
 

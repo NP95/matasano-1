@@ -303,7 +303,7 @@ int main(int argc, char *argv[])
 
 	/**       SET 5 CHALLENGE 38       **/
 	/** SSRP OFFLINE DICTIONARY ATTACK **/
-	BIGNUM *u;
+	BIGNUM *u, *fb, *fB;
 
 	u = BN_new();
 	v = BN_new();
@@ -313,6 +313,8 @@ int main(int argc, char *argv[])
 	bB = BN_new();
 	cS = BN_new();
 	sS = BN_new();
+	fb = BN_new();
+	fB = BN_new();
 
 	memset(srp_salt, 0, 9*sizeof(unsigned char));
 
@@ -325,27 +327,41 @@ int main(int argc, char *argv[])
 	hmac_s_len = sha256_secret_prefix_mac(hmac_s, str_hash, strlen(str_hash), srp_salt, strlen(srp_salt));
 	
 	memset(str_hash, 0, 2*SHA256_DIGEST_LENGTH);
-	ssrp_client_calc_session_key(str_hash, cS, srp_salt, srp_pass, ba, bB, u, p);
-// 	printf("[s5c6] client: sha256(S=0) = %s\n", str_hash);
+	// original settings transmitted to client
+// 	ssrp_client_calc_session_key(str_hash, cS, srp_salt, srp_pass, ba, bB, u, p);
+	// forged settings transmitted to client:
+	// u = 1, b = 1, B=g=2, salt=""
+	BN_one(u);
+	BN_one(fb);
+	BN_copy(fB, g);
+	ssrp_client_calc_session_key(str_hash, cS, "", srp_pass, ba, fB, u, p);
+// 	printf("[s5c6] client: sha256(S) = %s\n", str_hash);
 	// calc HMAC_SHA256(&cS, salt)
-	hmac_c_len = sha256_secret_prefix_mac(hmac_c, str_hash, strlen(str_hash), srp_salt, strlen(srp_salt));
+	hmac_c_len = sha256_secret_prefix_mac(hmac_c, str_hash, strlen(str_hash), "", 0);
 
-	printf("[s5c6] server: HMAC(K,Salt) = ");
-	for(i=0; i<hmac_s_len; i++) {
-		printf("%02x", hmac_s[i]);
-	}
-	printf("\n");
+// 	printf("[s5c6] server: HMAC(K,Salt) = ");
+// 	for(i=0; i<hmac_s_len; i++) {
+// 		printf("%02x", hmac_s[i]);
+// 	}
+// 	printf("\n");
 
-	printf("[s5c6] client: HMAC(K,Salt) = ");
+	printf("[s5c6] client: HMAC(K,\"\") = ");
 	for(i=0; i<hmac_c_len; i++) {
 		printf("%02x", hmac_c[i]);
 	}
 	printf("\n");
 
-	if((hmac_s_len == hmac_c_len) && !strncmp(hmac_s, hmac_c, hmac_s_len))
-		printf("[s5c6] server: Client HMAC-SHA256 successfully validated!\n");
+	// perform offline dictionary attack
+	char pass[1024];
+	if(ssrp_dictionary_attack(pass, hmac_c, "dict.txt", bA, g, p)>0)
+		printf("[s5c6] Password cracked: '%s'\n", pass);
 	else
-		printf("[s5c6] server: Client HMAC-SHA256 *NOT* validated!\n");
+		printf("[s5c6] Password not cracked!\n");
+
+// 	if((hmac_s_len == hmac_c_len) && !strncmp(hmac_s, hmac_c, hmac_s_len))
+// 		printf("[s5c6] server: Client HMAC-SHA256 successfully validated!\n");
+// 	else
+// 		printf("[s5c6] server: Client HMAC-SHA256 *NOT* validated!\n");
 
 	dh_clear(p, g);
 
@@ -359,5 +375,7 @@ int main(int argc, char *argv[])
 	BN_free(v);
 	BN_free(cS);
 	BN_free(sS);
+	BN_free(fb);
+	BN_free(fB);
 	return 0;
 }

@@ -321,3 +321,91 @@ void ssrp_client_calc_session_key(unsigned char *o_hash_S, BIGNUM *o_S, unsigned
 	BN_CTX_free(ctx);
 }
 
+int ssrp_dictionary_attack(unsigned char *o_passwd, unsigned char *i_client_hmac, unsigned char *i_dict_file, BIGNUM *i_A, BIGNUM *i_g, BIGNUM *i_N)
+{
+	/*
+	 * S = B^(a+ux) = B^a*B^ux = A^b*B^ux
+	 * we assume client was provided with:
+	 * b=1, B=g=2, u=1, salt=""
+	 * --> S = B^a*B^ux = A^1*B^x (= A*2^x)
+	 *     with x = SHA256(pass)
+	 */
+	FILE *fp = fopen(i_dict_file, "r");
+
+	if(fp==NULL) {
+		printf("Error: Can't read dictionaty file %s!\n", i_dict_file);
+		return -2;
+	}
+
+	short cracked=0;
+	char *line_str = NULL;
+	size_t len=0;
+	ssize_t read;
+	unsigned char str_hash[2*SHA256_DIGEST_LENGTH+1];	// tmp var
+	unsigned char o_hash_S[2*SHA256_DIGEST_LENGTH+1];
+	unsigned char hmac[SHA256_DIGEST_LENGTH];
+	unsigned int hmac_len;
+
+	unsigned char *strS;
+
+	BIGNUM *S, *T1, *T2, *x;
+	BN_CTX *ctx = BN_CTX_new();
+
+	unsigned int i;
+
+	while((read = getline(&line_str, &len, fp)) != -1) {
+		S = BN_new();
+		T1 = BN_new();
+		T2 = BN_new();
+		x = BN_new();
+
+		line_str[read-1]=0;
+		// str = Salt | Pass
+		srp_generate_salted_password_hash(x, str_hash, "", line_str);
+
+		// T1 = B^x = g^x
+		BN_mod_exp(T1, i_g, x, i_N, ctx);
+
+		// S = A^b*B^x = A^1*g^x = A*T1
+		BN_mod_mul(S, i_A, T1, i_N, ctx);
+
+		// K = SHA256(S)
+		// convert S to string
+		strS = BN_bn2hex(S);
+		srp_generate_salted_password_hash(T2, o_hash_S, "", strS);
+
+		// L' = HMAC(K, S)
+		hmac_len = sha256_secret_prefix_mac(hmac, o_hash_S, strlen(o_hash_S), "", 0);
+
+		// compare to client provided
+		if(!strncmp(hmac, i_client_hmac, hmac_len)) {
+			strncpy(o_passwd, line_str, read);
+			printf("[s5c6] crackd: HMAC(K,\"\") = ");
+			for(i=0; i<hmac_len; i++) {
+				printf("%02x", hmac[i]);
+			}
+			printf("\n");
+
+			cracked=1;
+		}
+
+		OPENSSL_free(strS);
+		BN_free(S);
+		BN_free(T1);
+		BN_free(T2);
+
+		if(cracked)
+			break;
+	}
+
+	if(line_str)
+		free(line_str);
+	close(fp);
+
+	BN_CTX_free(ctx);
+
+	if(cracked)
+		return read;
+	else
+		return -1;
+}
