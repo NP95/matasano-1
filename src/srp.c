@@ -333,7 +333,7 @@ int ssrp_dictionary_attack(unsigned char *o_passwd, unsigned char *i_client_hmac
 	FILE *fp = fopen(i_dict_file, "r");
 
 	if(fp==NULL) {
-		printf("Error: Can't read dictionaty file %s!\n", i_dict_file);
+		printf("Error: Can't read dictionary file %s!\n", i_dict_file);
 		return -2;
 	}
 

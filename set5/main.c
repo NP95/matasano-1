@@ -3,8 +3,11 @@
 #include <string.h>
 #include <time.h>
 
+#include <openssl/bio.h>
+
 #include "../include/dh.h"
 #include "../include/mac.h"
+#include "../include/rsa.h"
 #include "../include/srp.h"
 
 int main(int argc, char *argv[])
@@ -301,7 +304,7 @@ int main(int argc, char *argv[])
 	BN_free(cS);
 	BN_free(v);
 
-	/**       SET 5 CHALLENGE 38       **/
+	/**       SET 5 CHALLENGE 38        **/
 	/** SSRP OFFLINE DICTIONARY ATTACK **/
 	BIGNUM *u, *fb, *fB;
 
@@ -377,5 +380,50 @@ int main(int argc, char *argv[])
 	BN_free(sS);
 	BN_free(fb);
 	BN_free(fB);
+
+	/** SET 5 CHALLENGE 39 **/
+	/**        RSA         **/
+	BIGNUM *egcd_a = BN_new();
+	BIGNUM *egcd_b = BN_new();
+	BIGNUM *minv   = BN_new();
+
+	egcd_result_t res;
+
+	res.a = BN_new();
+	res.u = BN_new();
+	res.v = BN_new();
+
+	BN_dec2bn(&egcd_a, "3120");
+	BN_dec2bn(&egcd_b, "17");
+	//egcd(&res, egcd_a, egcd_b);
+
+	BIO *out = NULL;
+	out = BIO_new(BIO_s_file());
+	BIO_set_fp(out, stdout, BIO_NOCLOSE);
+
+	/*printf("[s5c7] egcd.a = ");
+	BN_print(out, res.a);
+	printf("\n[s5c7] egcd.u = ");
+	BN_print(out, res.u);
+	printf("\n[s5c7] egcd.v = ");
+	BN_print(out, res.v);
+	printf("\n");*/
+
+	if(!inv_mod(minv, egcd_a, egcd_b)) {
+		printf("\n[s5c7] inv_mod = ");
+		BN_print(out, minv);
+		printf("\n");
+	} else {
+		printf("[s5c7] No inverse found!\n");
+	}
+
+	BIO_free(out);
+
+	BN_free(egcd_a);
+	BN_free(egcd_b);
+	BN_free(res.a);
+	BN_free(res.u);
+	BN_free(res.v);
+
 	return 0;
 }
