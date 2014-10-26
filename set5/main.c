@@ -471,6 +471,46 @@ int main(int argc, char *argv[])
 	free(rsa_crypt);
 	free(rsa_plain_out);
 
+	/**        SET 5 CHALLENGE 40        **/
+	/** RSA E=3 BROADCAST ATTACK (CRT) **/
+
+	unsigned int BN_len = 3;
+	BIGNUM *BN_a[BN_len], *BN_n[BN_len];
+
+	for(i=0; i<BN_len; i++) {
+		BN_a[i] = BN_new();
+		BN_n[i] = BN_new();
+	}
+
+	BN_dec2bn(&BN_a[0], "2");
+	BN_dec2bn(&BN_a[1], "3");
+	BN_dec2bn(&BN_a[2], "2");
+
+	BN_dec2bn(&BN_n[0], "3");
+	BN_dec2bn(&BN_n[1], "5");
+	BN_dec2bn(&BN_n[2], "7");
+
+	BIGNUM *BN_res = BN_new();
+	BIGNUM *BN_res_nomod = BN_new();
+
+	if(!crt(BN_res, BN_res_nomod, BN_n, BN_a, BN_len)) {
+		printf("[s5c8] crt_res = '");
+		BN_print(out, BN_res);
+		printf("'\n[s5c8] crt_rnm = '");
+		BN_print(out, BN_res_nomod);
+		printf("'\n");
+	} else {
+		printf("[s5c8] Sorry CRT could note be solved!\n");
+	}
+
+	BN_free(BN_res);
+	BN_free(BN_res_nomod);
+
+	for(i=0; i<BN_len; i++) {
+			BN_free(BN_a[i]);
+			BN_free(BN_n[i]);
+		}
+
 	BN_free(puk.e);
 	BN_free(puk.n);
 	BN_free(pik.e);

@@ -50,5 +50,7 @@ typedef struct egcd_result egcd_result_t;
 void egcd(egcd_result_t *o_result, BIGNUM *i_a, BIGNUM *i_b);
 // calculate multiplicative inverse (invmod)
 int inv_mod(BIGNUM *o_result, BIGNUM *i_a, BIGNUM *i_b);
+// calculate Chinese remainder theorem
+int crt(BIGNUM *o_result, BIGNUM *o_result_nonmod, BIGNUM **i_n, BIGNUM **i_a, unsigned int i_len);
 
 #endif /* INCLUDE_RSA_H_ */
