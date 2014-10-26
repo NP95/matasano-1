@@ -5,6 +5,10 @@ Code &amp; solutions for the matasano crypto challenge (http://cryptopals.com).
 
 Be warned: this code is **VERY** hacky!
 
+**Dependencies**:
+
+- OpenSSL (I'm using v1.0.1j)
+
 Code Structure:
 
     include/   - contains header files possibly used across multiple sets
@@ -28,8 +32,8 @@ Progress:
      Challenge 25 .. 32 [done]
 
     *** Set 5 ***
-     Challenge 33 .. 38 [done]
-     Challenge 39    [working]
+     Challenge 33 .. 39 [done]
+     Challenge 40    [working]
 
 How to use:
 

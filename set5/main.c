@@ -410,20 +410,73 @@ int main(int argc, char *argv[])
 	printf("\n");*/
 
 	if(!inv_mod(minv, egcd_a, egcd_b)) {
-		printf("\n[s5c7] inv_mod = ");
+		printf("[s5c7] inv_mod = ");
 		BN_print(out, minv);
 		printf("\n");
 	} else {
 		printf("[s5c7] No inverse found!\n");
 	}
 
-	BIO_free(out);
-
 	BN_free(egcd_a);
 	BN_free(egcd_b);
 	BN_free(res.a);
 	BN_free(res.u);
 	BN_free(res.v);
+
+	// Testing RSA core functions
+	rsa_key_t puk;
+	rsa_key_t pik;
+
+	puk.e = BN_new();
+	puk.n = BN_new();
+	pik.e = BN_new();
+	pik.n = BN_new();
+
+	BIGNUM *BN_plain = BN_new();
+	BIGNUM *BN_crypt = BN_new();
+
+	BN_hex2bn(&BN_plain, "31337");
+
+	printf("[s5c7] BN_plain = ");
+	BN_print(out, BN_plain);
+	rsa_generate_keypair(&puk, &pik, 128);
+	rsa_bn_encrypt(BN_crypt, BN_plain, &puk);
+	printf("\n[s5c7] BN_crypt = ");
+	BN_print(out, BN_crypt);
+	rsa_bn_decrypt(BN_plain, BN_crypt, &pik);
+	printf("\n[s5c7] BN_plain'= ");
+	BN_print(out, BN_plain);
+	printf("\n");
+
+	BN_free(BN_plain);
+	BN_free(BN_crypt);
+
+	// Testing RSA 'wrapper' funcs
+	unsigned char *rsa_plain_in = "Hello RSA World!";
+	unsigned char *rsa_crypt = NULL; // = malloc(1024);
+	unsigned int rsa_crypt_len = 0;
+	unsigned char *rsa_plain_out = NULL; // = malloc(1024);
+	unsigned int rsa_plain_len;
+
+	rsa_crypt_len = rsa_encrypt(&rsa_crypt, rsa_plain_in, 16, &puk);
+	rsa_plain_len = rsa_decrypt(&rsa_plain_out, rsa_crypt, rsa_crypt_len, &pik);
+	//rsa_plain_out[rsa_plain_len-1] = 0;
+
+	printf("[s5c7] Encrypting '%s' using RSA...\n[s5c7] RSA crypted:   '", rsa_plain_in);
+	for(i=0; i<rsa_crypt_len; i++) {
+		printf("%02x", rsa_crypt[i]);
+	}
+	printf("'\n[s5c7] RSA decrypted: '%s'\n", rsa_plain_out);
+
+	free(rsa_crypt);
+	free(rsa_plain_out);
+
+	BN_free(puk.e);
+	BN_free(puk.n);
+	BN_free(pik.e);
+	BN_free(pik.n);
+
+	BIO_free(out);
 
 	return 0;
 }
