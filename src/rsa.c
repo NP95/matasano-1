@@ -128,6 +128,137 @@ unsigned int rsa_decrypt(unsigned char **o_plain, unsigned char *i_crypt, unsign
 	return plain_len;
 }
 
+/*
+ * Performs RSA broadcast attack as follows:
+ * Provide a series of cipher texts (i_crypted[]) that correspond
+ * to the *same* plain text but were encrypted using different
+ * public keys (i_pubkeys[]).
+ * The Chinese remainder theorem is applied to decrypt the provided
+ * message.
+ *
+ * @NOTE: Might give wrong results since we're using possibly
+ *         buggy egcd() here!
+ *
+ * @return
+ * 		Length of decrypted plain text, -1 on error.
+ *
+ * @param o_plain
+ * 		Will contain the decrypted plain text.
+ * @param i_crypted
+ * 		Array containing different cipher texts (for the *same*
+ * 		plain text).
+ * @param i_crypted_len
+ * 		Array containing the message lengths of the different
+ * 		cipher texts provided in i_crypted.
+ * @param i_pubkeys
+ * 		Array containing the respective RSA public keys used to
+ * 		encrypt the provided cipher texts.
+ * @param len
+ * 		Number of provided cipher texts and RSA public keys
+ * 		(number of elements in the provided arrays).
+ */
+int rsa_broadcast_attack(unsigned char **o_plain, unsigned char *i_crypted[], unsigned int i_crypted_len[], rsa_key_t i_pubkeys[], unsigned int len)
+{
+	unsigned char *crypted_hex[len];
+	unsigned char *hex_plain = NULL;
+	unsigned int hex_plain_len;
+	BIGNUM *n[len];
+	BIGNUM *BN_crypt[len];
+	BIGNUM *BN_plain = BN_new();
+	BIGNUM *C3 = BN_new();
+
+	BN_dec2bn(&C3, "3");
+
+	unsigned int i;
+
+	// initialize and convert input strings to BN
+	for(i=0; i<len; i++) {
+		crypted_hex[i] = NULL;
+		BN_crypt[i] = BN_new();
+		n[i] = BN_new();
+
+		hex_encode(&crypted_hex[i], i_crypted[i], i_crypted_len[i]);
+		if(!BN_hex2bn(&(BN_crypt[i]), crypted_hex[i]))
+			return -1;
+
+		BN_copy(n[i], i_pubkeys[i].n);
+	}
+
+	BIGNUM *crt_res = BN_new();
+	BIGNUM *crt_res_nm = BN_new();
+
+	crt(crt_res, crt_res_nm, n, BN_crypt, len);
+
+	nthroot(BN_plain, crt_res_nm, C3);
+
+	hex_plain = BN_bn2hex(BN_plain);
+	hex_plain_len = strlen(hex_plain);
+
+	hex_plain_len = hex_decode(o_plain, hex_plain, hex_plain_len);
+
+	// free memory
+	BN_free(crt_res);
+	BN_free(crt_res_nm);
+	BN_free(BN_plain);
+	BN_free(C3);
+
+	OPENSSL_free(hex_plain);
+
+	for(i=0; i<len; i++) {
+		free(crypted_hex[i]);
+		BN_free(BN_crypt[i]);
+	}
+
+	return hex_plain_len;
+}
+
+/*
+ * Provides a simple test case for rsa_broadcast_attack().
+ */
+void rsa_broadcast_attack_test(void)
+{
+	BIO *out = BIO_new(BIO_s_file());
+	BIO_set_fp(out, stdout, BIO_NOCLOSE);
+
+	unsigned int i;
+
+	rsa_key_t puk[3];
+	rsa_key_t pik[3];
+	unsigned char *plain = "THE KING IS GONE BUT NOT FORGOTTEN!"; // 35
+	unsigned char *crypt[3];
+	unsigned int crypt_len[3];
+	unsigned char *decrypt = NULL;
+	unsigned int decrypt_len = 0;
+
+	for(i=0; i<3; i++) {
+		puk[i].e = BN_new();
+		puk[i].n = BN_new();
+		pik[i].e = BN_new();
+		pik[i].n = BN_new();
+
+		rsa_generate_keypair(&puk[i], &pik[i], 128);
+
+		crypt[i] = NULL;
+
+		crypt_len[i] = rsa_encrypt(&crypt[i], plain, 35, &puk[i]);
+	}
+
+	decrypt_len = rsa_broadcast_attack(&decrypt, crypt, crypt_len, puk, 3);
+
+	printf("[s5c8] crt_decrypt = '%s'\n", decrypt);
+
+	for(i=0; i<3; i++) {
+		free(crypt[i]);
+		BN_free(puk[i].e);
+		BN_free(puk[i].n);
+		BN_free(pik[i].e);
+		BN_free(pik[i].n);
+	}
+
+	free(decrypt);
+	BIO_free(out);
+}
+
 /*** Helper functions ***/
 /*
  * Calculates extended euclidean algorithm of two numbers.
@@ -206,7 +337,7 @@ void egcd(egcd_result_t *o_result, BIGNUM *i_a, BIGNUM *i_b)
  * Returns 'result' where (op1*result) % op2 == 1.
  *
  * @NOTE: Might give wrong results for negative parameters op1, op2
- * since we're using egcd() here!
+ *         since we're using possibly buggy egcd() here!
  *
  * #TODO:
  * Make this work correctly for negative numbers (see:
@@ -243,12 +374,12 @@ int inv_mod(BIGNUM *result, BIGNUM *op1, BIGNUM *op2)
 /*
  * Calculates Chinese remainder theorem.
  *
- * @NOTE: Might give wrong results for negative parameters op1, op2
- * since we're using egcd() here!
+ * @NOTE: Might give wrong results since we're using possibly
+ *         buggy egcd() here!
  *
  * Source: http://rosettacode.org/wiki/Chinese_remainder_theorem
  */
-int crt(BIGNUM *o_result, BIGNUM *o_result_nonmod, BIGNUM **i_n, BIGNUM **i_a, unsigned int i_len)
+int crt(BIGNUM *o_result, BIGNUM *o_result_nonmod, BIGNUM *i_n[], BIGNUM *i_a[], unsigned int i_len)
 {
 	BIGNUM *p = BN_new();
 	BIGNUM *prod = BN_new();
@@ -305,4 +436,130 @@ int crt(BIGNUM *o_result, BIGNUM *o_result_nonmod, BIGNUM **i_n, BIGNUM **i_a, u
 	} else {
 		return 0;
 	}
+}
+
+void crt_test(void)
+{
+	unsigned int i;
+	unsigned int BN_len = 3;
+	BIGNUM *BN_a[BN_len], *BN_n[BN_len];
+
+	BIO *out = BIO_new(BIO_s_file());
+	BIO_set_fp(out, stdout, BIO_NOCLOSE);
+
+	for(i=0; i<BN_len; i++) {
+		BN_a[i] = BN_new();
+		BN_n[i] = BN_new();
+	}
+
+	// test our CRT implementation
+	BN_dec2bn(&BN_a[0], "2");
+	BN_dec2bn(&BN_a[1], "3");
+	BN_dec2bn(&BN_a[2], "2");
+
+	BN_dec2bn(&BN_n[0], "3");
+	BN_dec2bn(&BN_n[1], "5");
+	BN_dec2bn(&BN_n[2], "7");
+
+	BIGNUM *BN_res = BN_new();
+	BIGNUM *BN_res_nomod = BN_new();
+
+	if(!crt(BN_res, BN_res_nomod, BN_n, BN_a, BN_len)) {
+		printf("[s5c8] crt_res = '");
+		BN_print(out, BN_res);
+		printf("'\n[s5c8] crt_rnm = '");
+		BN_print(out, BN_res_nomod);
+		printf("'\n");
+	} else {
+		printf("[s5c8] Sorry CRT could note be solved!\n");
+	}
+
+	BN_free(BN_res);
+	BN_free(BN_res_nomod);
+
+	for(i=0; i<BN_len; i++) {
+		BN_free(BN_a[i]);
+		BN_free(BN_n[i]);
+	}
+
+	BIO_free(out);
+}
+
+/*
+ * Calculates n-th root of a BIGNUM.
+ *
+ * @return void
+ * @param o_result
+ * 		Pointer to BIGNUM that will hold the result.
+ * @param i_num
+ * 		BIGNUM to be rooted.
+ * @param i_n
+ * 		BIGNUM holding n parameter (choose n=2 for sqrt,
+ * 		n=3 for cbrt, ...).
+ */
+void nthroot(BIGNUM *o_result, BIGNUM *i_num, BIGNUM *i_n)
+{
+	BIGNUM *x = BN_new();
+	BIGNUM *p = BN_new();
+	BIGNUM *T0 = BN_new();
+	BIGNUM *T1 = BN_new();
+	BIGNUM *T2 = BN_new();
+	BIGNUM *C1 = BN_new();
+	BIGNUM *R = BN_new();
+	BIGNUM *N = BN_new();
+
+	BN_CTX *ctx = BN_CTX_new();
+
+	BN_one(C1);
+	BN_copy(T0, i_num);
+	BN_copy(x, i_num);
+	BN_sub(N, i_n, C1);
+
+	while(BN_cmp(T0, C1)==1) {
+		BN_copy(p, x);
+		BN_mul(T0, N, p, ctx);
+		BN_exp(T1, p, N, ctx);
+		BN_div(T2, R, i_num, T1, ctx);
+		BN_add(T1, T0, T2);
+		BN_div(x, R, T1, i_n, ctx);
+
+		BN_sub(T0, p, x);
+	}
+
+	BN_copy(o_result, x);
+
+	BN_free(x);
+	BN_free(p);
+	BN_free(T0);
+	BN_free(T1);
+	BN_free(T2);
+	BN_free(C1);
+	BN_free(R);
+	BN_free(N);
+
+	BN_CTX_free(ctx);
+}
+
+void nthroot_test(void)
+{
+	BIGNUM *test1 = BN_new();
+	BIGNUM *test2 = BN_new();
+	BIGNUM *test3 = BN_new();
+
+	BIO *out = BIO_new(BIO_s_file());
+	BIO_set_fp(out, stdout, BIO_NOCLOSE);
+
+	BN_dec2bn(&test1, "729");
+	BN_dec2bn(&test2, "3");
+
+	nthroot(test3, test1, test2);
+
+	printf("[s5c8] cbrt(729) = ");
+	BN_print(out, test3);
+	printf("\n");
+
+	BN_free(test1);
+	BN_free(test2);
+	BN_free(test3);
+	BIO_free(out);
 }

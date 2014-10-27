@@ -8,6 +8,7 @@
 #ifndef INCLUDE_RSA_H_
 #define INCLUDE_RSA_H_
 
+#include <openssl/bio.h>
 #include <openssl/bn.h>
 #include <openssl/rand.h>
 
@@ -52,5 +53,7 @@ void egcd(egcd_result_t *o_result, BIGNUM *i_a, BIGNUM *i_b);
 int inv_mod(BIGNUM *o_result, BIGNUM *i_a, BIGNUM *i_b);
 // calculate Chinese remainder theorem
 int crt(BIGNUM *o_result, BIGNUM *o_result_nonmod, BIGNUM **i_n, BIGNUM **i_a, unsigned int i_len);
+// calculate n-th (i_n) root of a BIGNUM (i_num)
+void nthroot(BIGNUM *o_result, BIGNUM *i_num, BIGNUM *i_n);
 
 #endif /* INCLUDE_RSA_H_ */
