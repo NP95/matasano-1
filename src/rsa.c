@@ -82,12 +82,24 @@ unsigned int rsa_encrypt(unsigned char **o_crypt, unsigned char *i_plain, unsign
 	BIGNUM *plain = BN_new();
 	BIGNUM *crypt = BN_new();
 
+	BIO *out = BIO_new(BIO_s_file());
+	BIO_set_fp(out, stdout, BIO_NOCLOSE);
+
 	BN_hex2bn(&plain, plain_hex);
 
 	rsa_bn_encrypt(crypt, plain, i_pubkey);
 
-	crypt_hex = BN_bn2hex(crypt);
+	printf("[s5c8] crypt = '");
+	BN_print(out, crypt);
+	printf("'\n");
 
+//	printf("[s5c8] puk = '");
+//	BN_print(out, i_pubkey->n);
+//	printf("'\n");
+
+	BIO_free(out);
+
+	crypt_hex = BN_bn2hex(crypt);
 	crypt_len = hex_decode(o_crypt, crypt_hex, strlen(crypt_hex));
 
 	BN_free(plain);
@@ -157,7 +169,7 @@ unsigned int rsa_decrypt(unsigned char **o_plain, unsigned char *i_crypt, unsign
  * 		Number of provided cipher texts and RSA public keys
  * 		(number of elements in the provided arrays).
  */
-int rsa_broadcast_attack(unsigned char **o_plain, unsigned char *i_crypted[], unsigned int i_crypted_len[], rsa_key_t i_pubkeys[], unsigned int len)
+int rsa_broadcast_attack(unsigned char **o_plain, unsigned char *i_crypted[], unsigned int i_crypted_len[], rsa_key_t *i_pubkeys[], unsigned int len)
 {
 	unsigned char *crypted_hex[len];
 	unsigned char *hex_plain = NULL;
@@ -166,10 +178,15 @@ int rsa_broadcast_attack(unsigned char **o_plain, unsigned char *i_crypted[], un
 	BIGNUM *BN_crypt[len];
 	BIGNUM *BN_plain = BN_new();
 	BIGNUM *C3 = BN_new();
+	BIGNUM *C1 = BN_new();
 
 	BN_dec2bn(&C3, "3");
+	BN_dec2bn(&C1, "1");
 
 	unsigned int i;
+
+	BIO *out = BIO_new(BIO_s_file());
+	BIO_set_fp(out, stdout, BIO_NOCLOSE);
 
 	// initialize and convert input strings to BN
 	for(i=0; i<len; i++) {
@@ -177,22 +194,42 @@ int rsa_broadcast_attack(unsigned char **o_plain, unsigned char *i_crypted[], un
 		BN_crypt[i] = BN_new();
 		n[i] = BN_new();
 
-		hex_encode(&crypted_hex[i], i_crypted[i], i_crypted_len[i]);
+		hex_encode(&crypted_hex[i], ((unsigned char *)i_crypted[i]), ((unsigned int)i_crypted_len[i]));
 		if(!BN_hex2bn(&(BN_crypt[i]), crypted_hex[i]))
 			return -1;
 
-		BN_copy(n[i], i_pubkeys[i].n);
+//		printf("[s5c8] crypt[%d] = '", i);
+//		BN_print(out, BN_crypt[i]);
+//		printf("'\n");
+
+		BN_copy(n[i], ((rsa_key_t *)(i_pubkeys[i]))->n);
+
+		printf("[s5c8] n[%d] = '", i);
+		BN_print(out, n[i]);
+		printf("'\n");
 	}
+
+	BIO_free(out);
 
 	BIGNUM *crt_res = BN_new();
 	BIGNUM *crt_res_nm = BN_new();
 
+//	c_i = m^3 (mod n_i), i = [1..3]
+//	c_i * x = 1 (mod n_i) <=> x = invmod(m^3, n_i)
 	crt(crt_res, crt_res_nm, n, BN_crypt, len);
+//	crt(crt_res, crt_res_nm, BN_crypt, n, len);
 
+	BN_set_word(C3, (unsigned long) len);
 	nthroot(BN_plain, crt_res_nm, C3);
+//	nthroot(BN_plain, crt_res, C3);
+//	BN_copy(BN_plain, crt_res_nm);
+
+//	BN_add(BN_plain, BN_plain, C1);
 
 	hex_plain = BN_bn2hex(BN_plain);
 	hex_plain_len = strlen(hex_plain);
+
+//	printf("hex_pl = '%s'\n", hex_plain);
 
 	hex_plain_len = hex_decode(o_plain, hex_plain, hex_plain_len);
 
@@ -201,6 +238,7 @@ int rsa_broadcast_attack(unsigned char **o_plain, unsigned char *i_crypted[], un
 	BN_free(crt_res_nm);
 	BN_free(BN_plain);
 	BN_free(C3);
+	BN_free(C1);
 
 	OPENSSL_free(hex_plain);
 
@@ -221,38 +259,55 @@ void rsa_broadcast_attack_test(void)
 	BIO_set_fp(out, stdout, BIO_NOCLOSE);
 
 	unsigned int i;
+	unsigned int num = 3;
 
-	rsa_key_t puk[3];
-	rsa_key_t pik[3];
+	rsa_key_t *puk[num];
+	rsa_key_t pik[num];
 	unsigned char *plain = "THE KING IS GONE BUT NOT FORGOTTEN!"; // 35
-	unsigned char *crypt[3];
-	unsigned int crypt_len[3];
+//	unsigned char *plain = "\x08"; // 1
+	unsigned char *crypt[num];
+	unsigned int crypt_len[num];
 	unsigned char *decrypt = NULL;
 	unsigned int decrypt_len = 0;
 
-	for(i=0; i<3; i++) {
-		puk[i].e = BN_new();
-		puk[i].n = BN_new();
+	for(i=0; i<num; i++) {
+		puk[i] = malloc(sizeof(rsa_key_t *));
+		puk[i]->e = BN_new();
+		puk[i]->n = BN_new();
 		pik[i].e = BN_new();
 		pik[i].n = BN_new();
 
-		rsa_generate_keypair(&puk[i], &pik[i], 128);
+		rsa_generate_keypair(puk[i], &pik[i], 256);
+
+//		switch(i) {
+//		case 0:
+//			BN_dec2bn(&(puk[i]->n), "3");
+//			break;
+//		case 1:
+//			BN_dec2bn(&(puk[i]->n), "5");
+//			break;
+//		case 2:
+//			BN_dec2bn(&(puk[i]->n), "7");
+//			break;
+//		}
 
 		crypt[i] = NULL;
 
-		crypt_len[i] = rsa_encrypt(&crypt[i], plain, 35, &puk[i]);
+		crypt_len[i] = rsa_encrypt(&(crypt[i]), plain, 35, puk[i]);
+//		crypt_len[i] = rsa_encrypt(&crypt[i], plain, 1, puk[i]);
 	}
 
-	decrypt_len = rsa_broadcast_attack(&decrypt, crypt, crypt_len, puk, 3);
+	decrypt_len = rsa_broadcast_attack(&decrypt, crypt, crypt_len, puk, num);
 
-	printf("[s5c8] crt_decrypt = '%s'\n", decrypt);
+	printf("[s5c8] crt_decrypt(%2d) = '%s'\n", decrypt_len, decrypt);
 
-	for(i=0; i<3; i++) {
+	for(i=0; i<num; i++) {
 		free(crypt[i]);
-		BN_free(puk[i].e);
-		BN_free(puk[i].n);
+		BN_free(puk[i]->e);
+		BN_free(puk[i]->n);
 		BN_free(pik[i].e);
 		BN_free(pik[i].n);
+		free(puk[i]);
 	}
 
 	free(decrypt);
@@ -332,6 +387,45 @@ void egcd(egcd_result_t *o_result, BIGNUM *i_a, BIGNUM *i_b)
 }
 
 /*
+ * Provides a simple test case for egcd().
+ */
+void egcd_test(void)
+{
+	BIGNUM *egcd_a = BN_new();
+	BIGNUM *egcd_b = BN_new();
+	BIGNUM *minv   = BN_new();
+
+	egcd_result_t res;
+
+	res.a = BN_new();
+	res.u = BN_new();
+	res.v = BN_new();
+
+	BN_dec2bn(&egcd_a, "3120");
+	BN_dec2bn(&egcd_b, "17");
+	egcd(&res, egcd_a, egcd_b);
+
+	BIO *out = BIO_new(BIO_s_file());
+	BIO_set_fp(out, stdout, BIO_NOCLOSE);
+
+	printf("[s5c7] egcd.a = ");
+	BN_print(out, res.a);
+	printf("\n[s5c7] egcd.u = ");
+	BN_print(out, res.u);
+	printf("\n[s5c7] egcd.v = ");
+	BN_print(out, res.v);
+	printf("\n");
+
+	BN_free(egcd_a);
+	BN_free(egcd_b);
+	BN_free(res.a);
+	BN_free(res.u);
+	BN_free(res.v);
+
+	BIO_free(out);
+}
+
+/*
  * Calculates modular multiplicative inverse using the extended
  * euclidean algorthim:
  * Returns 'result' where (op1*result) % op2 == 1.
@@ -364,11 +458,71 @@ int inv_mod(BIGNUM *result, BIGNUM *op1, BIGNUM *op2)
 		BN_copy(result, res.v);
 	}
 
+	//	[s5c7] egcd.a = 1
+	//	[s5c7] egcd.u = 2
+	//	[s5c7] egcd.v = -16F
+	unsigned char *ca = BN_bn2hex(res.a);
+	unsigned char *cu = BN_bn2hex(res.u);
+	unsigned char *cv = BN_bn2hex(res.v);
+
+	if(strcmp(ca, "01") || strcmp(cu, "02") || strcmp(cv, "-016F")) {
+		printf("[s5c7] egcd_test failed(01 != %s, 02 != %s, -016F != %s)!\n", ca, cu, cv);
+	}
+
+	OPENSSL_free(ca);
+	OPENSSL_free(cu);
+	OPENSSL_free(cv);
+
 	BN_free(res.a);
 	BN_free(res.u);
 	BN_free(res.v);
 
 	return 0;
+}
+
+/*
+ * Provides a simple test case for inv_mod().
+ */
+void inv_mod_test(void)
+{
+	BIGNUM *egcd_a = BN_new();
+	BIGNUM *egcd_b = BN_new();
+	BIGNUM *minv   = BN_new();
+
+	egcd_result_t res;
+
+	res.a = BN_new();
+	res.u = BN_new();
+	res.v = BN_new();
+
+	BN_dec2bn(&egcd_a, "3120");
+	BN_dec2bn(&egcd_b, "17");
+
+	BIO *out = BIO_new(BIO_s_file());
+	BIO_set_fp(out, stdout, BIO_NOCLOSE);
+
+	if(!inv_mod(minv, egcd_a, egcd_b)) {
+		printf("[s5c7] inv_mod = ");
+		BN_print(out, minv);
+		printf("\n");
+	} else {
+		printf("[s5c7] No inverse found!\n");
+	}
+
+//	[s5c7] inv_mod = AC1
+	unsigned char *cminv = BN_bn2hex(minv);
+	if(strcmp(cminv, "0AC1")) {
+		printf("[s5c7] inv_mod_test failed (0AC1 != %s)!\n", cminv);
+	}
+	OPENSSL_free(cminv);
+
+	BN_free(egcd_a);
+	BN_free(egcd_b);
+	BN_free(res.a);
+	BN_free(res.u);
+	BN_free(res.v);
+
+	BIO_free(out);
 }
 
 /*
@@ -397,17 +551,31 @@ int crt(BIGNUM *o_result, BIGNUM *o_result_nonmod, BIGNUM *i_n[], BIGNUM *i_a[],
 	BN_one(prod);
 	BN_zero(sum);
 
+	BIO *out = BIO_new(BIO_s_file());
+	BIO_set_fp(out, stdout, BIO_NOCLOSE);
+
 	for(i=0; i<i_len; i++) {
-		BN_mul(T0, prod, i_n[i], ctx);
+		BN_mul(T0, prod, ((BIGNUM *)i_n[i]), ctx);
 		BN_copy(prod, T0);
+
+//		printf("[s5c8] n[%d] = '", i);
+//		BN_print(out, ((BIGNUM *)i_n[i]));
+//		printf("'\n");
+
+		printf("[s5c8] a[%d] = '", i);
+		BN_print(out, ((BIGNUM *)i_a[i]));
+		printf("'\n");
 	}
 
-	for(i=0; i<i_len; i++) {
-		BN_div(p, rem, prod, i_n[i], ctx);
+	BIO_free(out);
 
-		if(!inv_mod(T0, i_n[i], p)) {
+	for(i=0; i<i_len; i++) {
+		BN_div(p, rem, prod, ((BIGNUM *)i_n[i]), ctx);
+
+//		if(!inv_mod(T0, ((BIGNUM *)i_n[i]), p)) {
+		if(BN_mod_inverse(T0, p, ((BIGNUM *)i_n[i]), ctx)!=NULL) {
 			BN_mul(T1, T0, p, ctx);
-			BN_mul(T2, T1, i_a[i], ctx);
+			BN_mul(T2, T1, ((BIGNUM *)i_a[i]), ctx);
 			BN_add(T0, sum, T2);
 			BN_copy(sum, T0);
 		}
@@ -419,6 +587,8 @@ int crt(BIGNUM *o_result, BIGNUM *o_result_nonmod, BIGNUM *i_n[], BIGNUM *i_a[],
 
 	BN_copy(o_result_nonmod, sum);
 	BN_mod(o_result, sum, prod, ctx);
+
+//	BN_mod_inverse(o_result_nonmod, o_result, prod, ctx);
 
 	BN_free(p);
 	BN_free(prod);
@@ -474,6 +644,12 @@ void crt_test(void)
 		printf("[s5c8] Sorry CRT could note be solved!\n");
 	}
 
+	unsigned char *cb = BN_bn2hex(BN_res);
+	if(strcmp(cb, "17")) {
+		printf("[s5c7] crt_test failed (17 != %s)!\n", cb);
+	}
+	OPENSSL_free(cb);
+
 	BN_free(BN_res);
 	BN_free(BN_res_nomod);
 
@@ -505,17 +681,19 @@ void nthroot(BIGNUM *o_result, BIGNUM *i_num, BIGNUM *i_n)
 	BIGNUM *T1 = BN_new();
 	BIGNUM *T2 = BN_new();
 	BIGNUM *C1 = BN_new();
+	BIGNUM *C0 = BN_new();
 	BIGNUM *R = BN_new();
 	BIGNUM *N = BN_new();
 
 	BN_CTX *ctx = BN_CTX_new();
 
 	BN_one(C1);
+	BN_zero(C0);
 	BN_copy(T0, i_num);
 	BN_copy(x, i_num);
 	BN_sub(N, i_n, C1);
 
-	while(BN_cmp(T0, C1)==1) {
+	while(BN_cmp(T0, C0)==1) {
 		BN_copy(p, x);
 		BN_mul(T0, N, p, ctx);
 		BN_exp(T1, p, N, ctx);
@@ -533,6 +711,7 @@ void nthroot(BIGNUM *o_result, BIGNUM *i_num, BIGNUM *i_n)
 	BN_free(T0);
 	BN_free(T1);
 	BN_free(T2);
+	BN_free(C0);
 	BN_free(C1);
 	BN_free(R);
 	BN_free(N);
@@ -557,6 +736,12 @@ void nthroot_test(void)
 	printf("[s5c8] cbrt(729) = ");
 	BN_print(out, test3);
 	printf("\n");
+
+	unsigned char *cb = BN_bn2hex(test3);
+	if(strcmp(cb, "09")) {
+		printf("[s5c7] nthroot_test failed (09 != %s)!\n", cb);
+	}
+	OPENSSL_free(cb);
 
 	BN_free(test1);
 	BN_free(test2);
