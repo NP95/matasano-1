@@ -1,8 +1,8 @@
 /*
  * rsa.h
  *
- *  Created on: 25.10.2014
- *      Author: rc0r
+ * Created on: 25.10.2014
+ * Author:     rc0r
  */
 
 #ifndef INCLUDE_RSA_H_
