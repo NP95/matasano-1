@@ -1,4 +1,4 @@
-all: set1 set2 set3 set4 set5
+all: set1 set2 set3 set4 set5 set6
 
 set1: src/aes.o src/pkcs.o src/hex2base64.o src/hex_coder.o src/xor.o src/histogram.o src/hamming.o set1/main.o
 	gcc -ggdb src/aes.c src/pkcs.o src/hex2base64.c src/hex_coder.c src/xor.c src/histogram.c src/hamming.c set1/main.c -lm -lcrypto -o set1/main.out
@@ -14,6 +14,9 @@ set4:  src/httpget.o src/md4.o src/sha1.o src/mac.o src/aes.o src/histogram.o sr
 
 set5:  src/md4.o src/sha1.o src/mac.o src/aes.o src/histogram.o src/hamming.o src/hex2base64.o src/xor.o src/hex_coder.o src/pkcs.o src/rmath.o src/dh.o src/srp.o src/rsa.o set5/main.o
 	gcc -ggdb src/md4.c src/sha1.c src/mac.c src/aes.c src/histogram.c src/hamming.c src/hex2base64.c src/xor.c src/hex_coder.c src/pkcs.c src/rmath.c src/dh.c src/srp.c src/rsa.c set5/main.c -lm -lcrypto -o set5/main.out
+
+set6:  src/md4.o src/sha1.o src/mac.o src/aes.o src/histogram.o src/hamming.o src/hex2base64.o src/xor.o src/hex_coder.o src/pkcs.o src/rmath.o src/dh.o src/srp.o src/rsa.o set6/main.o
+	gcc -ggdb src/md4.c src/sha1.c src/mac.c src/aes.c src/histogram.c src/hamming.c src/hex2base64.c src/xor.c src/hex_coder.c src/pkcs.c src/rmath.c src/dh.c src/srp.c src/rsa.c set6/main.c -lm -lcrypto -o set6/main.out
 
 clean:
 	rm -rf ./src/*.o

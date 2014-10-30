@@ -195,7 +195,7 @@ int rsa_broadcast_attack(unsigned char **o_plain, unsigned char *i_crypted[], un
 	BIGNUM *crt_res = BN_new();
 	BIGNUM *crt_res_nm = BN_new();
 
-//	c_i = m^3 (mod n_i), i = [1..3]
+	// c_i = m^3 (mod n_i), i = [1..3]
 	crt(crt_res, crt_res_nm, n, BN_crypt, len);
 
 	BN_set_word(C3, (unsigned long) len);
@@ -302,6 +302,158 @@ void rsa_broadcast_attack_test(void)
 
 	free(decrypt);
 	BIO_free(out);
+}
+
+/*
+ * Implements an RSA oracle that takes user encrypted cipher texts,
+ * decrypts them and returns the corresponding plain texts.
+ * In the original sense the oracle rejects requests containing the same
+ * cipher text more than once.
+ * For simplicity we'll omit this part. And assume the attacker supplies
+ * captured cipher texts (that were already used) modified according to #41
+ * in order to trick the oracle into decrypting them.
+ *
+ * @return
+ * 		void
+ * @param o_plain
+ * 		Pointer to BIGNUM containing the decrypted message (needs to be
+ * 		converted to unsigned char * by th user).
+ * @param i_cipher
+ * 		Pointer to BIGNUM containing the cipher text to be decrypted.
+ * @param i_privkey
+ * 		Private key to use for decryption. (In a real world application
+ * 		this key would be stored on the server and would obviously *NOT* be
+ * 		provided by the client/user.)
+ */
+void rsa_unpadded_msg_oracle(BIGNUM *o_plain, BIGNUM *i_cipher, rsa_key_t *i_privkey)
+{
+	// a simple RSA decrypt on BIGNUMs is all we need...
+	rsa_bn_decrypt(o_plain, i_cipher, i_privkey);
+}
+
+/*
+ * Performs the attack on the rsa_unpadded_msg_oracle() by modifying
+ * captured messages. Fed into the oracle, the original plain texts are
+ * recovered from the oracles response. So basically, we're tricking the
+ * oracle into decrypting a message it has already seen.
+ *
+ * @return
+ * 		Length in bytes of the recovered plain text, -1 on error.
+ * @param o_plain
+ * 		Pointer to string containing the recovered plain text.
+ * @param i_ciphertext
+ * 		The original, captured input that was already fed into the oracle.
+ * @param i_ciphertext_len
+ * 		The length in bytes of the original plain text.
+ * @param i_pubkey
+ * 		The public key that was used to encrypt the original message.
+ * @param i_privkey
+ * 		The private key used by the server. (Again, this key would/should
+ * 		not	cross any wire in a real world setup. We're providing it here
+ * 		to simplify the use of the "attack simulation" funcs.)
+ */
+int rsa_unpadded_msg_oracle_attack(unsigned char **o_plain, unsigned char *i_ciphertext, unsigned int i_ciphertext_len, rsa_key_t *i_pubkey, rsa_key_t *i_privkey)
+{
+	unsigned char *crypt_hex = NULL;
+	unsigned char *plain_hex = NULL;
+	int plain_hex_len = 0;
+	unsigned int failed = 0;
+
+	BIGNUM *crypt = BN_new();
+	BIGNUM *T0 = BN_new();
+	BIGNUM *S = BN_new();
+	BIGNUM *C_mod = BN_new();
+	BIGNUM *plain_mod = BN_new();
+	BIGNUM *plain = BN_new();
+
+	BN_CTX *ctx = BN_CTX_new();
+
+	// #TODO: proper seed needed a-priori!
+	BN_rand(T0, 128, 0, 0);
+	BN_mod(S, T0, i_pubkey->n, ctx);
+
+	hex_encode(&crypt_hex, i_ciphertext, i_ciphertext_len);
+	BN_hex2bn(&crypt, crypt_hex);
+
+	// C' = ((S^E mod n) * C) mod n
+	BN_mod_exp(T0, S, i_pubkey->e, i_pubkey->n, ctx);
+	BN_mod_mul(C_mod, T0, crypt, i_pubkey->n, ctx);
+
+	// feed the oracle
+	rsa_unpadded_msg_oracle(plain_mod, C_mod, i_privkey);
+
+	// reconstruct the original plain text
+	// P = P'*S' mod n (S' = modinv(S, n)
+	if(!inv_mod(T0, i_pubkey->n, S)) {
+		BN_mod_mul(plain, plain_mod, T0, i_pubkey->n, ctx);
+	}
+	else {
+		failed = 1;
+	}
+
+	plain_hex = BN_bn2hex(plain);
+	plain_hex_len = strlen(plain_hex);
+
+	plain_hex_len = hex_decode(o_plain, plain_hex, plain_hex_len);
+
+	OPENSSL_free(plain_hex);
+
+	free(crypt_hex);
+	BN_free(crypt);
+	BN_free(S);
+	BN_free(T0);
+	BN_free(C_mod);
+	BN_free(plain);
+	BN_free(plain_mod);
+
+	BN_CTX_free(ctx);
+
+	if(failed) {
+		return -1;
+	} else {
+		return plain_hex_len;
+	}
+	return -1;
+}
+
+/*
+ * Provides a test case for rsa_unpadded_msg_oracle_attack().
+ */
+void rsa_unpadded_msg_oracle_attack_test(void)
+{
+	rsa_key_t puk;
+	rsa_key_t pik;
+
+	puk.e = BN_new();
+	puk.n = BN_new();
+	pik.e = BN_new();
+	pik.n = BN_new();
+
+	unsigned char *msg = "IS THIS THE STORY OF JOHNNY ROTTEN?!"; // 36
+	unsigned int msg_len = strlen(msg);
+
+	unsigned char *crypted = NULL;
+	unsigned int crypted_len = 0;
+
+	unsigned char *recovered_plain = NULL;
+	int recovered_plain_len = 0;
+
+	// pay attention to the key size!
+	// be sure to choose n, that:
+	//		m < n
+	// (m being the plain text, n the pub key modulus)
+	rsa_generate_keypair(&puk, &pik, 256);
+
+	crypted_len = rsa_encrypt(&crypted, msg, msg_len, &puk);
+
+	if((recovered_plain_len = rsa_unpadded_msg_oracle_attack(&recovered_plain, crypted, crypted_len, &puk, &pik)) < 0) {
+		printf("[s6c1] RSA unpadded message oracle attack failed (returned -1)!\n");
+	} else {
+		printf("[s6c1] Recovered plain text: '%s'\n", recovered_plain);
+	}
+
+	free(crypted);
+	free(recovered_plain);
 }
 
 /*** Helper functions ***/

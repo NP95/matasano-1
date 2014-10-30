@@ -25,21 +25,21 @@ typedef struct rsa_key rsa_key_t;
 
 // generate RSA public and private keys
 void rsa_generate_keypair(rsa_key_t *o_pubkey, rsa_key_t *o_privkey, unsigned long bits);
-
 // perform core bignum encryption
 void rsa_bn_encrypt(BIGNUM *o_crypt, BIGNUM *i_plain, rsa_key_t *i_pubkey);
-
 // perform data encryption
 unsigned int rsa_encrypt(unsigned char **o_crypt, unsigned char *i_plain, unsigned int i_plain_len, rsa_key_t *i_pubkey);
-
 // perform core bignum decryption
 void rsa_bn_decrypt(BIGNUM *o_plain, BIGNUM *i_crypt, rsa_key_t *i_privkey);
-
 // perform data decryption
 unsigned int rsa_decrypt(unsigned char **o_plain, unsigned char *i_crypt, unsigned int i_crypt_len, rsa_key_t *i_privkey);
 
 // perform RSA broadcast attack
 int rsa_broadcast_attack(unsigned char **o_plain, unsigned char *i_crypted[], unsigned int i_crypted_len[], rsa_key_t *i_pubkeys[], unsigned int len);
+// provide a RSA unpadded message oracle
+void rsa_unpadded_msg_oracle(BIGNUM *o_plain, BIGNUM *i_cipher, rsa_key_t *i_privkey);
+// perform RSA unpadding message oracle attack
+int rsa_unpadded_msg_oracle_attack(unsigned char **o_plain, unsigned char *i_ciphertext, unsigned int i_ciphertext_len, rsa_key_t *i_pubkey, rsa_key_t *i_privkey);
 
 /** Helper functions and stuff **/
 struct egcd_result {
@@ -61,6 +61,7 @@ void nthroot(BIGNUM *o_result, BIGNUM *i_num, BIGNUM *i_n);
 
 /** test funcs **/
 void rsa_broadcast_attack_test(void);
+void rsa_unpadded_msg_oracle_attack_test(void);
 
 void egcd_test(void);
 void inv_mod_test(void);
