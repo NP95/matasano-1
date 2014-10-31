@@ -17,7 +17,8 @@ void srp_generate_salted_password_hash(BIGNUM *o_intHash, unsigned char *o_strHa
 // 	memcpy(hash_in, i_salt, strlen(i_salt)*sizeof(unsigned char));
 // 	memcpy(hash_in+strlen(i_salt)*sizeof(unsigned char), i_password, strlen(i_password)*sizeof(unsigned char));
 
-	// generate sha256 hash
+	// calculate SHA256 hash of message
+	// #TODO: put this in a separate function!
 	SHA256_CTX sha256;
 	SHA256_Init(&sha256);
 	SHA256_Update(&sha256, hash_in, 1024);

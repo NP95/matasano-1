@@ -5,6 +5,8 @@
  *  Author:     rc0r
  */
 
+#include <openssl/sha.h>
+
 #include "../include/hex_coder.h"
 #include "../include/rsa.h"
 
@@ -375,7 +377,7 @@ int rsa_unpadded_msg_oracle_attack(unsigned char **o_plain, unsigned char *i_cip
 	hex_encode(&crypt_hex, i_ciphertext, i_ciphertext_len);
 	BN_hex2bn(&crypt, crypt_hex);
 
-	// C' = ((S^E mod n) * C) mod n
+	// C' = ((S^E mod n) * C) mod n = (S*P)^E mod n
 	BN_mod_exp(T0, S, i_pubkey->e, i_pubkey->n, ctx);
 	BN_mod_mul(C_mod, T0, crypt, i_pubkey->n, ctx);
 
@@ -383,6 +385,7 @@ int rsa_unpadded_msg_oracle_attack(unsigned char **o_plain, unsigned char *i_cip
 	rsa_unpadded_msg_oracle(plain_mod, C_mod, i_privkey);
 
 	// reconstruct the original plain text
+	// P' = S*P mod n
 	// P = P'*S' mod n (S' = modinv(S, n)
 	if(!inv_mod(T0, i_pubkey->n, S)) {
 		BN_mod_mul(plain, plain_mod, T0, i_pubkey->n, ctx);
@@ -454,6 +457,133 @@ void rsa_unpadded_msg_oracle_attack_test(void)
 
 	free(crypted);
 	free(recovered_plain);
+}
+
+/*
+ * Pads a message similarly to PKCS#1 v1.5 encoding scheme,
+ * but simply inserts 0xEEEEEEEE as ASN.1 field.
+ *
+ * @return
+ * 		Length of the padded message, <0 on error.
+ * 		Returns -1 if desired length in bytes of the padded
+ * 		message is too short.
+ * @param o_padded_msg
+ * 		Padded message.
+ * @param i_msg
+ * 		Input message that needs padding.
+ * @param i_msg_len
+ * 		Length in bytes of input message.
+ * @param i_padded_msg_len
+ * 		Desired length in bytes of the padded message.
+ */
+int rsa_simple_pad(unsigned char *o_padded_msg, unsigned char *i_msg, unsigned int i_msg_len, unsigned int i_padded_msg_len)
+{
+	unsigned int i;
+
+	// 00 01 Nx(PP) 00 EE EE EE EE DD .. DD, N>=4
+	// constant length = 11
+	if(i_padded_msg_len <= (i_msg_len+11)) {
+		return -1;
+	}
+
+	memset(o_padded_msg, 0, i_padded_msg_len*sizeof(unsigned char));
+	memcpy(o_padded_msg, "\x00\x01\xFF\xFF\xFF\xFF", 6);
+
+	// add variable length padding (0xFF)
+	for(i=0; i<(i_padded_msg_len-(i_msg_len+11)); i++) {
+		memset(o_padded_msg+6+i, 0xff, 1);
+	}
+
+	// add end of padding and ASN.1 field
+	memcpy(o_padded_msg+6+i, "\x00\xEE\xEE\xEE\xEE", 5);
+	// add original data
+	memcpy(o_padded_msg+11+i, i_msg, i_msg_len*sizeof(unsigned char));
+
+	return i_padded_msg_len;
+}
+
+/*
+ * Provides a simple test case for rsa_simple_pad().
+ */
+void rsa_simple_pad_test(void)
+{
+	unsigned char pad[1024];
+	unsigned int pad_len;
+	unsigned char *msg = "test";
+
+	memset(pad, 0, 1024);
+	pad_len = rsa_simple_pad(pad, msg, 4, 32);
+
+	unsigned char *pad_hex;
+
+	hex_encode(&pad_hex, pad, pad_len);
+
+	printf("[s6c2] rsa_simple_pad('test') = %s\n", pad_hex);
+
+	free(pad_hex);
+	return;
+}
+
+/*
+ * Sign a message using SHA-256.
+ *
+ * Pseudo code for the algorithm:
+ * H = SHA256(M) 			// (M being the message)
+ * H'= rsa_simple_pad(H)	// (0x) 00 01 PP 00 | 4xEE | H
+ * 							// PP being padding sequence (0xff)
+ * 							// of sufficient length
+ * 							// #TODO: determine sufficient length
+ * S = RSA_priv_encrypt(H')
+ *
+ * Originally rsa_simple_pad() would implement PKCS#1 v1.5
+ * encoding, which we'll omit here for simplicity:
+ * H'= PKCS1.5_pad(H)		// (0x) 00 01 PP 00 | ASN.1 | H
+ *
+ * @return
+ * 		Length in bytes of the RSA signature, -1 on error.
+ * @param o_signature
+ * 		Pointer to string containing the RSA signature of
+ * 		the provided message.
+ * @param i_msg
+ * 		Message to be signed.
+ * @param i_msg_len
+ * 		Length in bytes of the message to be signed.
+ * @param i_privkey
+ * 		RSA private key that will be used for signing.
+ */
+int rsa_sign(unsigned char **o_signature, unsigned char *i_msg, unsigned int i_msg_len, rsa_key_t *i_privkey)
+{
+	unsigned int i;
+
+	// calculate SHA256 hash of message
+	// #TODO: put this in a separate function!
+	unsigned char hash[SHA256_DIGEST_LENGTH];
+	unsigned char hash_str[SHA256_DIGEST_LENGTH*2+1];
+	SHA256_CTX sha256;
+	SHA256_Init(&sha256);
+	SHA256_Update(&sha256, i_msg, i_msg_len);
+	SHA256_Final(hash, &sha256);
+	for(i = 0; i<SHA256_DIGEST_LENGTH; i++) {
+		sprintf(hash_str + (2*i), "%02x", hash[i]);
+	}
+	hash_str[SHA256_DIGEST_LENGTH*2] = 0;
+	// return sha256 hash
+
+	unsigned int pad_len;
+	unsigned char hash_pad[128];	// <-- this shouldn't be a fixed value!
+									// better: determine from privkey size?
+
+	// pad the hash
+	if((pad_len = rsa_simple_pad(hash_pad, hash_str, (SHA256_DIGEST_LENGTH*2+1), 128))<0) {
+		return pad_len;
+	}
+
+	// encrypt with private key
+	int signature_length;
+
+	signature_length = rsa_encrypt(o_signature, hash_pad, pad_len, i_privkey);
+
+	return signature_length;
 }
 
 /*** Helper functions ***/
