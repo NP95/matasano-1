@@ -31,13 +31,13 @@ int main(int argc, char *argv[])
 	puk.e = BN_new();
 	puk.n = BN_new();
 
-	rsa_generate_keypair(&puk, &pik, 1024);
+	rsa_generate_keypair(&puk, &pik, 512);
 
 	sign_len = rsa_sign(&sign, "Hey hey, my my!!", 16, &pik);
 
 	hex_encode(&sign_hex, sign, sign_len);
 
-	printf("[s6c2] rsa signature: %s\n", sign_hex);
+	printf("[s6c2] RSA signature (%d bits): %s\n", sign_len*8, sign_hex);
 
 	free(sign_hex);
 	free(sign);

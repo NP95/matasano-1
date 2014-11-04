@@ -1,6 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-
+#include "../include/hash.h"
 #include "../include/srp.h"
 
 /** SRP Helper Funcs **/
@@ -14,21 +12,8 @@ void srp_generate_salted_password_hash(BIGNUM *o_intHash, unsigned char *o_strHa
 	// str = Salt | Pass
 	strcpy(hash_in, i_salt);
 	strcat(hash_in, i_password);
-// 	memcpy(hash_in, i_salt, strlen(i_salt)*sizeof(unsigned char));
-// 	memcpy(hash_in+strlen(i_salt)*sizeof(unsigned char), i_password, strlen(i_password)*sizeof(unsigned char));
 
-	// calculate SHA256 hash of message
-	// #TODO: put this in a separate function!
-	SHA256_CTX sha256;
-	SHA256_Init(&sha256);
-	SHA256_Update(&sha256, hash_in, 1024);
-	SHA256_Final(hash, &sha256);
-	for(i = 0; i<SHA256_DIGEST_LENGTH; i++) {
-		sprintf(o_strHash + (2*i), "%02X", hash[i]);
-	}
-	o_strHash[SHA256_DIGEST_LENGTH*2] = 0;
-	
-// 	printf("%s\n", o_strHash);
+	hash_sha256(o_strHash, hash_in, 1024);
 
 	// convert hash to int (BIGNUM)
 	// x = int(SHA256_hash)

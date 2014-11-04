@@ -5,8 +5,9 @@
  *  Author:     rc0r
  */
 
-#include <openssl/sha.h>
+//#include <openssl/sha.h>
 
+#include "../include/hash.h"
 #include "../include/hex_coder.h"
 #include "../include/rsa.h"
 
@@ -554,20 +555,12 @@ void rsa_simple_pad_test(void)
 int rsa_sign(unsigned char **o_signature, unsigned char *i_msg, unsigned int i_msg_len, rsa_key_t *i_privkey)
 {
 	unsigned int i;
-
-	// calculate SHA256 hash of message
-	// #TODO: put this in a separate function!
 	unsigned char hash[SHA256_DIGEST_LENGTH];
 	unsigned char hash_str[SHA256_DIGEST_LENGTH*2+1];
-	SHA256_CTX sha256;
-	SHA256_Init(&sha256);
-	SHA256_Update(&sha256, i_msg, i_msg_len);
-	SHA256_Final(hash, &sha256);
-	for(i = 0; i<SHA256_DIGEST_LENGTH; i++) {
-		sprintf(hash_str + (2*i), "%02x", hash[i]);
-	}
-	hash_str[SHA256_DIGEST_LENGTH*2] = 0;
-	// return sha256 hash
+	unsigned int hash_len;
+
+	// calculate SHA256 hash of message
+	hash_len = hash_sha256(hash_str, i_msg, i_msg_len);
 
 	unsigned int pad_len;
 	unsigned char hash_pad[128];	// <-- this shouldn't be a fixed value!
@@ -584,6 +577,43 @@ int rsa_sign(unsigned char **o_signature, unsigned char *i_msg, unsigned int i_m
 	signature_length = rsa_encrypt(o_signature, hash_pad, pad_len, i_privkey);
 
 	return signature_length;
+}
+
+/*
+ * Verifies the RSA (SHA-256) signature for a given
+ * message.
+ *
+ * @return
+ * 		Returns 1 if the signature was successfully
+ * 		verified, 0 if the signature could not be verified
+ * 		and -1 on error.
+ * @param i_msg
+ * 		Message to verify.
+ * @param i_msg_len
+ * 		Length in bytes of the message.
+ * @param i_sign
+ * 		RSA signature of the message.
+ * @param i_sign_len
+ * 		Length in bytes of the RSA signature.
+ * @param i_pubkey
+ * 		RSA public key to use for verification.
+ */
+int rsa_sign_verify(unsigned char *i_msg, unsigned int i_msg_len, unsigned char *i_sign, unsigned int i_sign_len, rsa_key_t *i_pubkey)
+{
+	// decrypt signature
+	unsigned char *dec_pad_msg;
+	unsigned int dec_pad_msg_len;
+
+	unsigned char *pad_msg;
+	unsigned int pad_msg_len;
+
+	dec_pad_msg_len = rsa_decrypt(&dec_pad_msg, i_sign, i_sign_len, i_pubkey);
+
+	// generate pad_string from message and compare with decrypted pad_msg
+	// generate pad_string from message
+	pad_msg_len = rsa_simple_pad(pad_msg, i_msg, i_msg_len, 1024);
+
+	return 0;
 }
 
 /*** Helper functions ***/
