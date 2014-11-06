@@ -581,7 +581,7 @@ int rsa_sign(unsigned char **o_signature, unsigned char *i_msg, unsigned int i_m
 
 /*
  * Verifies the RSA (SHA-256) signature for a given
- * message.
+ * message in a vulnerable way.
  *
  * @return
  * 		Returns 1 if the signature was successfully
@@ -601,18 +601,25 @@ int rsa_sign(unsigned char **o_signature, unsigned char *i_msg, unsigned int i_m
 int rsa_sign_verify(unsigned char *i_msg, unsigned int i_msg_len, unsigned char *i_sign, unsigned int i_sign_len, rsa_key_t *i_pubkey)
 {
 	// decrypt signature
-	unsigned char *dec_pad_msg;
-	unsigned int dec_pad_msg_len;
+	unsigned char *dec_pad_msg = NULL;
+	unsigned int dec_pad_msg_len = 0;
 
-	unsigned char *pad_msg;
-	unsigned int pad_msg_len;
+	unsigned char msg_hash[SHA256_DIGEST_LENGTH*2+1];
+	unsigned int msg_hash_len;
 
 	dec_pad_msg_len = rsa_decrypt(&dec_pad_msg, i_sign, i_sign_len, i_pubkey);
 
-	// generate pad_string from message and compare with decrypted pad_msg
-	// generate pad_string from message
-	pad_msg_len = rsa_simple_pad(pad_msg, i_msg, i_msg_len, 1024);
+	// generate sha256 hash from message
+	msg_hash_len = hash_sha256(msg_hash, i_msg, i_msg_len);
 
+	// dumb verify
+	unsigned int final_pad_pos = dec_pad_msg_len - msg_hash_len - 7;
+	if(!memcmp(dec_pad_msg, "\x01", 1) && !memcmp((dec_pad_msg+final_pad_pos), "\xff\x00\xee\xee\xee\xee", 6) && !memcmp((dec_pad_msg+final_pad_pos+6), msg_hash, msg_hash_len)) {
+		free(dec_pad_msg);
+		return 1;
+	}
+
+	free(dec_pad_msg);
 	return 0;
 }
 

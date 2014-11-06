@@ -39,6 +39,12 @@ int main(int argc, char *argv[])
 
 	printf("[s6c2] RSA signature (%d bits): %s\n", sign_len*8, sign_hex);
 
+	if(rsa_sign_verify("Hey hey, my my!!", 16, sign, sign_len, &puk)) {
+		printf("[s6c2] RSA signature successfully verified!\n");
+	} else {
+		printf("[s6c2] RSA signature *NOT* verified!\n");
+	}
+
 	free(sign_hex);
 	free(sign);
 
