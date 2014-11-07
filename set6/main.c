@@ -33,18 +33,36 @@ int main(int argc, char *argv[])
 
 	rsa_generate_keypair(&puk, &pik, 512);
 
-	sign_len = rsa_sign(&sign, "Hey hey, my my!!", 16, &pik);
+	sign_len = rsa_sign(&sign, "hi mom", 6, &pik);
 
 	hex_encode(&sign_hex, sign, sign_len);
 
 	printf("[s6c2] RSA signature (%d bits): %s\n", sign_len*8, sign_hex);
 
-	if(rsa_sign_verify("Hey hey, my my!!", 16, sign, sign_len, &puk)) {
+	if(rsa_sign_verify("hi mom", 6, sign, sign_len, &puk)) {
 		printf("[s6c2] RSA signature successfully verified!\n");
 	} else {
 		printf("[s6c2] RSA signature *NOT* verified!\n");
 	}
 
+	free(sign_hex);
+
+	unsigned char *forged_sign = NULL;
+	unsigned int forged_sign_len = 0;
+
+	forged_sign_len = rsa_sign_forge(&forged_sign, "hi mom", 6, &puk);
+
+	sign_len = hex_encode(&sign_hex, forged_sign, forged_sign_len);
+
+	printf("[s6c2] Forged RSA signature (%d bits): %s\n", sign_len*8, sign_hex);
+
+	if(rsa_sign_verify("hi mom", 6, forged_sign, forged_sign_len, &puk)) {
+		printf("[s6c2] Forged RSA signature successfully verified!\n");
+	} else {
+		printf("[s6c2] Forged RSA signature *NOT* verified!\n");
+	}
+
+	free(forged_sign);
 	free(sign_hex);
 	free(sign);
 

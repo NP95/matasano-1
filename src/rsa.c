@@ -462,7 +462,7 @@ void rsa_unpadded_msg_oracle_attack_test(void)
 
 /*
  * Pads a message similarly to PKCS#1 v1.5 encoding scheme,
- * but simply inserts 0xEEEEEEEE as ASN.1 field.
+ * but simply inserts a hard coded ASN.1 field.
  *
  * @return
  * 		Length of the padded message, <0 on error.
@@ -477,28 +477,30 @@ void rsa_unpadded_msg_oracle_attack_test(void)
  * @param i_padded_msg_len
  * 		Desired length in bytes of the padded message.
  */
-int rsa_simple_pad(unsigned char *o_padded_msg, unsigned char *i_msg, unsigned int i_msg_len, unsigned int i_padded_msg_len)
+int rsa_simple_pad(unsigned char *o_padded_msg, unsigned char *i_msg, unsigned int i_msg_len, unsigned int i_padded_msg_len, unsigned char i_pad_char)
 {
 	unsigned int i;
 
-	// 00 01 Nx(PP) 00 EE EE EE EE DD .. DD, N>=4
-	// constant length = 11
-	if(i_padded_msg_len <= (i_msg_len+11)) {
+	// 00 01 Nx(PP) FF 00 ASN.1 DD .. DD, N>=4
+	// constant length = 4
+	if(i_padded_msg_len < (i_msg_len+4+ASN1_field_len)) {
 		return -1;
 	}
 
 	memset(o_padded_msg, 0, i_padded_msg_len*sizeof(unsigned char));
-	memcpy(o_padded_msg, "\x00\x01\xFF\xFF\xFF\xFF", 6);
+	memcpy(o_padded_msg, "\x00\x01", 2);
 
-	// add variable length padding (0xFF)
-	for(i=0; i<(i_padded_msg_len-(i_msg_len+11)); i++) {
-		memset(o_padded_msg+6+i, 0xff, 1);
+	// add variable length padding
+	for(i=0; i<(i_padded_msg_len-(i_msg_len+4+ASN1_field_len)); i++) {
+		memset(o_padded_msg+2+i, i_pad_char, 1);
 	}
 
-	// add end of padding and ASN.1 field
-	memcpy(o_padded_msg+6+i, "\x00\xEE\xEE\xEE\xEE", 5);
+	// add end of padding 0xff 0x00
+	memcpy(o_padded_msg+2+i, "\xff\x00", 2);
+	// add  and ASN.1 field
+	memcpy(o_padded_msg+4+i, ASN1_field, ASN1_field_len*sizeof(unsigned char));
 	// add original data
-	memcpy(o_padded_msg+11+i, i_msg, i_msg_len*sizeof(unsigned char));
+	memcpy(o_padded_msg+4+ASN1_field_len+i, i_msg, i_msg_len*sizeof(unsigned char));
 
 	return i_padded_msg_len;
 }
@@ -513,7 +515,7 @@ void rsa_simple_pad_test(void)
 	unsigned char *msg = "test";
 
 	memset(pad, 0, 1024);
-	pad_len = rsa_simple_pad(pad, msg, 4, 32);
+	pad_len = rsa_simple_pad(pad, msg, 4, 32, 0xff);
 
 	unsigned char *pad_hex;
 
@@ -530,7 +532,7 @@ void rsa_simple_pad_test(void)
  *
  * Pseudo code for the algorithm:
  * H = SHA256(M) 			// (M being the message)
- * H'= rsa_simple_pad(H)	// (0x) 00 01 PP 00 | 4xEE | H
+ * H'= rsa_simple_pad(H)	// (0x) 00 01 PP 00 | ASN1 | H
  * 							// PP being padding sequence (0xff)
  * 							// of sufficient length
  * 							// #TODO: determine sufficient length
@@ -555,19 +557,21 @@ void rsa_simple_pad_test(void)
 int rsa_sign(unsigned char **o_signature, unsigned char *i_msg, unsigned int i_msg_len, rsa_key_t *i_privkey)
 {
 	unsigned int i;
-	unsigned char hash[SHA256_DIGEST_LENGTH];
+	unsigned char *hash;
 	unsigned char hash_str[SHA256_DIGEST_LENGTH*2+1];
 	unsigned int hash_len;
 
 	// calculate SHA256 hash of message
 	hash_len = hash_sha256(hash_str, i_msg, i_msg_len);
+	hash_len = hex_decode(&hash, hash_str, hash_len);
 
 	unsigned int pad_len;
 	unsigned char hash_pad[128];	// <-- this shouldn't be a fixed value!
 									// better: determine from privkey size?
 
 	// pad the hash
-	if((pad_len = rsa_simple_pad(hash_pad, hash_str, (SHA256_DIGEST_LENGTH*2+1), 128))<0) {
+	if((pad_len = rsa_simple_pad(hash_pad, hash, hash_len, 128, 0xff))<0) {
+		free(hash);
 		return pad_len;
 	}
 
@@ -576,6 +580,7 @@ int rsa_sign(unsigned char **o_signature, unsigned char *i_msg, unsigned int i_m
 
 	signature_length = rsa_encrypt(o_signature, hash_pad, pad_len, i_privkey);
 
+	free(hash);
 	return signature_length;
 }
 
@@ -600,27 +605,132 @@ int rsa_sign(unsigned char **o_signature, unsigned char *i_msg, unsigned int i_m
  */
 int rsa_sign_verify(unsigned char *i_msg, unsigned int i_msg_len, unsigned char *i_sign, unsigned int i_sign_len, rsa_key_t *i_pubkey)
 {
+	unsigned int failed = 0;
 	// decrypt signature
 	unsigned char *dec_pad_msg = NULL;
 	unsigned int dec_pad_msg_len = 0;
 
-	unsigned char msg_hash[SHA256_DIGEST_LENGTH*2+1];
+	unsigned char msg_hash_hex[SHA256_DIGEST_LENGTH*2+1];
+	unsigned char *msg_hash;
 	unsigned int msg_hash_len;
 
 	dec_pad_msg_len = rsa_decrypt(&dec_pad_msg, i_sign, i_sign_len, i_pubkey);
 
 	// generate sha256 hash from message
-	msg_hash_len = hash_sha256(msg_hash, i_msg, i_msg_len);
-
+	msg_hash_len = hash_sha256(msg_hash_hex, i_msg, i_msg_len);
+	msg_hash_len = hex_decode(&msg_hash, msg_hash_hex, msg_hash_len);
 	// dumb verify
-	unsigned int final_pad_pos = dec_pad_msg_len - msg_hash_len - 7;
-	if(!memcmp(dec_pad_msg, "\x01", 1) && !memcmp((dec_pad_msg+final_pad_pos), "\xff\x00\xee\xee\xee\xee", 6) && !memcmp((dec_pad_msg+final_pad_pos+6), msg_hash, msg_hash_len)) {
-		free(dec_pad_msg);
-		return 1;
+	if(dec_pad_msg[0] != 0x01) {
+		failed = 1;
 	}
 
+	unsigned int i=0;
+	unsigned char cmp[ASN1_field_len+2];
+
+	memcpy(cmp, "\xff\x00", 2);
+	memcpy(cmp+2, ASN1_field, ASN1_field_len*sizeof(unsigned char));
+
+	// skip the padding until we reach (0xff 0x00 ASN.1) fields
+	for(i=1; i<dec_pad_msg_len; i++) {
+		if(!memcmp((dec_pad_msg+i), cmp, ASN1_field_len+2)) {
+			break;
+		}
+	}
+
+//	unsigned char *dec_hash_hex;
+//
+//	hex_encode(&dec_hash_hex, dec_pad_msg+i+ASN1_field_len+2, msg_hash_len);
+//	printf("[s6c2] sha256_dec(msg) = %s\n", dec_hash_hex);
+//	free(dec_hash_hex);
+
+	// verify sha256 hash
+	if(memcmp((dec_pad_msg+i+ASN1_field_len+2), msg_hash, msg_hash_len)) {
+		failed = 1;
+	}
+
+	free(msg_hash);
 	free(dec_pad_msg);
-	return 0;
+
+	if(failed) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+/*
+ * Forges an RSA signature with the help of Bleichenbacher's
+ * RSA (e=3) attack. We're exploiting the dumb signature checking
+ * function here...
+ *
+ * @return
+ * 		Length in bytes of the forged signature, -1 on error.
+ * @param o_sign_forged
+ * 		Pointer to string that will contain the forged RSA signature.
+ * @param i_msg
+ * 		Message for which we want to forge an RSA signature.
+ * @param i_msg_len
+ * 		Length in bytes of the message.
+ * @param i_pubkey
+ * 		RSA public key with e=3.
+ */
+int rsa_sign_forge(unsigned char **o_sign_forged, unsigned char *i_msg, unsigned int i_msg_len, rsa_key_t *i_pubkey)
+{
+	unsigned char msg_hash_hex[SHA256_DIGEST_LENGTH*2+1];
+	unsigned char *msg_hash;
+	unsigned int msg_hash_len = 0;
+
+	unsigned char pad_sign[256]; // 128
+	unsigned int pad_sign_len = 0;
+
+	unsigned char *pad_sign_hex = NULL;
+
+	// calculate sha256 hash of msg
+	msg_hash_len = hash_sha256(msg_hash_hex, i_msg, i_msg_len);
+//	printf("[s6c2] sha256(msg) =     %s\n", msg_hash_hex);
+	msg_hash_len = hex_decode(&msg_hash, msg_hash_hex, msg_hash_len);
+
+//	msg_hash[msg_hash_len-1]++;
+
+	// pad message as needed
+	memset(pad_sign, 0, 256); // 128
+	if((pad_sign_len = rsa_simple_pad(pad_sign, msg_hash, msg_hash_len, msg_hash_len+4+ASN1_field_len, 0x00))<0) {
+		free(msg_hash);
+		return -1;
+	}
+
+	free(msg_hash);
+
+	// with the nthroot method we'll achieve a sha256 checksum, that's
+	// off by the last byte, so we need to increase our number by
+	// replacing the trailing zeroes with some garbage until the hashes
+	// match --> set the following bits high
+	// #TODO: automate this
+	pad_sign[pad_sign_len] = 0xf0;
+	hex_encode(&pad_sign_hex, pad_sign, pad_sign_len+69);
+
+	// cube root
+	BIGNUM *sign = BN_new();
+	BIGNUM *num = BN_new();
+
+	BN_hex2bn(&num, pad_sign_hex);
+
+	nthroot(sign, num, i_pubkey->e);
+
+	unsigned char *sign_forged_hex = NULL;
+	unsigned int sign_forged_hex_len = 0;
+
+	sign_forged_hex = BN_bn2hex(sign);
+	sign_forged_hex_len = strlen(sign_forged_hex);
+
+	sign_forged_hex_len = hex_decode(o_sign_forged, sign_forged_hex, sign_forged_hex_len);
+
+	free(pad_sign_hex);
+	OPENSSL_free(sign_forged_hex);
+	BN_free(sign);
+	BN_free(num);
+
+	return sign_forged_hex_len;
 }
 
 /*** Helper functions ***/
