@@ -12,6 +12,8 @@
 #include <openssl/bn.h>
 #include <openssl/rand.h>
 
+#include "ring.h"
+
 /** RSA functions and stuff **/
 // we're using some hard coded dummy ASN1 field here
 static const unsigned char *ASN1_field = "\xee\xee\xee\xee";
@@ -50,32 +52,9 @@ void rsa_unpadded_msg_oracle(BIGNUM *o_plain, BIGNUM *i_cipher, rsa_key_t *i_pri
 // perform RSA unpadding message oracle attack
 int rsa_unpadded_msg_oracle_attack(unsigned char **o_plain, unsigned char *i_ciphertext, unsigned int i_ciphertext_len, rsa_key_t *i_pubkey, rsa_key_t *i_privkey);
 
-/** Helper functions and stuff **/
-struct egcd_result {
-	BIGNUM *a;
-	BIGNUM *u;
-	BIGNUM *v;
-};
-
-typedef struct egcd_result egcd_result_t;
-
-// calculate extended greatest common div. (euclidean algo.)
-void egcd(egcd_result_t *o_result, BIGNUM *i_a, BIGNUM *i_b);
-// calculate multiplicative inverse (invmod)
-int inv_mod(BIGNUM *o_result, BIGNUM *i_a, BIGNUM *i_b);
-// calculate Chinese remainder theorem
-int crt(BIGNUM *o_result, BIGNUM *o_result_nonmod, BIGNUM **i_n, BIGNUM **i_a, unsigned int i_len);
-// calculate n-th (i_n) root of a BIGNUM (i_num)
-void nthroot(BIGNUM *o_result, BIGNUM *i_num, BIGNUM *i_n);
-
 /** test funcs **/
 void rsa_broadcast_attack_test(void);
 void rsa_unpadded_msg_oracle_attack_test(void);
 void rsa_simple_pad_test(void);
-
-void egcd_test(void);
-void inv_mod_test(void);
-void crt_test(void);
-void nthroot_test(void);
 
 #endif /* INCLUDE_RSA_H_ */
