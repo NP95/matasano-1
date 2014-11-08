@@ -66,5 +66,13 @@ int main(int argc, char *argv[])
 	free(sign_hex);
 	free(sign);
 
+	unsigned char sha1sum[41];
+	unsigned char *test_msg = "For those that envy a MC it can be hazardous to your health\n\
+So be friendly, a matter of life and death, just like a etch-a-sketch\n";
+
+	hash_sha1(sha1sum, test_msg, strlen(test_msg));
+
+	printf("[s6c3] sha1() = %s\n", sha1sum);
+
 	return 0;
 }

@@ -55,6 +55,7 @@ void rsa_generate_keypair(rsa_key_t *o_pubkey, rsa_key_t *o_privkey, unsigned lo
 
 	BN_free(T0);
 	BN_free(T1);
+	BN_free(C1);
 
 	BN_CTX_free(ctx);
 }

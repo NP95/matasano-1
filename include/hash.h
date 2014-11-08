@@ -15,5 +15,6 @@
 #include <openssl/sha.h>
 
 unsigned int hash_sha256(unsigned char *o_hash_str, unsigned char *i_msg, unsigned int i_msg_len);
+unsigned int hash_sha1(unsigned char *o_hash_str, unsigned char *i_msg, unsigned int i_msg_len);
 
 #endif /* INCLUDE_HASH_H_ */
