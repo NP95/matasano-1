@@ -8,6 +8,7 @@
 #ifndef INCLUDE_DSA_H_
 #define INCLUDE_DSA_H_
 
+#include "hash.h"
 #include "ring.h"
 
 /** DSA parameters **/
@@ -51,12 +52,16 @@ dsa_key_t *dsa_key_new(void);
 // free memory of a dsa_key_t struct
 void dsa_key_free(dsa_key_t *key);
 // allocate memory for all the bignums in a dsa_signature_t struct
-dsa_key_t *dsa_signature_new(void);
+dsa_signature_t *dsa_signature_new(void);
 // free memory of a dsa_signature_t struct
-void dsa_key_free(dsa_signature_t *key);
+void dsa_signature_free(dsa_signature_t *key);
 
 // generate DSA key pair from hard coded params
 void dsa_generate_keypair(dsa_key_t *o_pubkey, dsa_key_t *o_privkey, unsigned long bits);
+// DSA-SHA1 sign a message
+void dsa_sha1_sign(dsa_signature_t *o_signature, unsigned char *i_msg, unsigned int i_msg_len, dsa_key_t *i_privkey);
+// verfiy DSA-SHA1 signed message
+int dsa_sha1_sign_verify(unsigned char *i_msg, unsigned int i_msg_len, dsa_signature_t *i_signature, dsa_key_t *i_pubkey);
 
 /** test funcs **/
 
