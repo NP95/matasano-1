@@ -104,6 +104,13 @@ void dsa_generate_keypair(dsa_key_t *o_pubkey, dsa_key_t *o_privkey, unsigned lo
 	BN_hex2bn(&o_privkey->p, dsa_p);
 	BN_hex2bn(&o_privkey->q, dsa_q);
 
+	// #DEBUG
+//	unsigned char *pik = "18";
+//	unsigned char *puk = "9e";
+//
+//	BN_hex2bn(&o_pubkey->xy, puk);
+//	BN_hex2bn(&o_privkey->xy, pik);
+
 	// generate prime x
 	unsigned int q_bits = strlen(dsa_q)*4;
 	unsigned int x_bits = (i_bits <= q_bits) ? i_bits : q_bits;
@@ -144,7 +151,10 @@ void dsa_sha1_sign(dsa_signature_t *o_signature, unsigned char *i_msg, unsigned 
 	// generate k, k^-1
 	// #TODO: apropriate seed needed a-priori!
 	BN_rand_range(k, i_privkey->q);
-	inv_mod(k_inv, k, i_privkey->q);
+//	unsigned char *kstr = "f";
+//	BN_hex2bn(&k, kstr);
+
+	inv_mod(k_inv, i_privkey->q, k);
 
 	// r = (g^k mod p) mod q
 	BN_mod_exp(T0, i_privkey->g, k, i_privkey->p, ctx);
@@ -153,7 +163,8 @@ void dsa_sha1_sign(dsa_signature_t *o_signature, unsigned char *i_msg, unsigned 
 	// generate H(m) (= SHA1(m))
 	unsigned char hash_hex[SHA_DIGEST_LENGTH*2+1];
 	hash_sha1(hash_hex, i_msg, i_msg_len);
-	BN_hex2bn(&H, hash_hex);
+//	unsigned char *hash_hex = "29";
+//	BN_hex2bn(&H, hash_hex);
 
 	// s = (k^-1 (H + xr)) mod q
 	BN_mod_mul(T0, i_privkey->xy, o_signature->r, i_privkey->q, ctx);
@@ -206,11 +217,13 @@ int dsa_sha1_sign_verify(unsigned char *i_msg, unsigned int i_msg_len, dsa_signa
 	// generate H(m) (= SHA1(m))
 	unsigned char hash_hex[SHA_DIGEST_LENGTH*2+1];
 	hash_sha1(hash_hex, i_msg, i_msg_len);
-	BN_hex2bn(&H, hash_hex);
+//	unsigned char *hash_hex = "29";
+//	BN_hex2bn(&H, hash_hex);
 
 	// w = s^-1 mod q
-	inv_mod(s_inv, i_signature->s, i_pubkey->q);
-	BN_mod(w, s_inv, i_pubkey->q, ctx);
+//	inv_mod(s_inv, i_signature->s, i_pubkey->q);
+	inv_mod(w, i_pubkey->q, i_signature->s);
+	//BN_mod(w, s_inv, i_pubkey->q, ctx);
 
 	// u1 = H*w mod q
 	BN_mod_mul(u1, H, w, i_pubkey->q, ctx);
