@@ -60,9 +60,12 @@ void dsa_signature_free(dsa_signature_t *key);
 void dsa_generate_keypair(dsa_key_t *o_pubkey, dsa_key_t *o_privkey, unsigned long bits);
 // DSA-SHA1 sign a message
 void dsa_sha1_sign(dsa_signature_t *o_signature, unsigned char *i_msg, unsigned int i_msg_len, dsa_key_t *i_privkey);
+// DSA-SHA1 sign a message using a fixed DSA session key k
+void dsa_sha1_sign_fixed_k(dsa_signature_t *o_signature, unsigned char *i_msg, unsigned int i_msg_len, BIGNUM *i_k, dsa_key_t *i_privkey);
 // verfiy DSA-SHA1 signed message
 int dsa_sha1_sign_verify(unsigned char *i_msg, unsigned int i_msg_len, dsa_signature_t *i_signature, dsa_key_t *i_pubkey);
-
+// calculate DSA private key from small DSA subkey k
+int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signature, unsigned long int i_range, unsigned char *i_msg, unsigned int i_msg_len, dsa_key_t *i_pubkey);
 /** test funcs **/
 
 #endif /* INCLUDE_DSA_H_ */

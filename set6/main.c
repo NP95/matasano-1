@@ -81,9 +81,9 @@ So be friendly, a matter of life and death, just like a etch-a-sketch\n";
 
 	printf("[s6c3] sha1() = %s\n", sha1sum);
 
-	dsa_key_t dsa_puk;// = dsa_key_new();
-	dsa_key_t dsa_pik;// = dsa_key_new();
-	dsa_signature_t dsa_sign;// = dsa_signature_new();
+	dsa_key_t dsa_puk;
+	dsa_key_t dsa_pik;
+	dsa_signature_t dsa_sign;
 
 	dsa_puk.g = BN_new();
 	dsa_puk.p = BN_new();
@@ -104,6 +104,38 @@ So be friendly, a matter of life and death, just like a etch-a-sketch\n";
 		printf("[s6c3] DSA-SHA1 signature successfully verified!\n");
 	} else {
 		printf("[s6c3] DSA-SHA1 signature *NOT* verified!\n");
+	}
+
+	BN_hex2bn(&dsa_puk.xy, "84ad4719d044495496a3201c8ff484feb45b962e7302e56a392aee4\
+bab3e4bdebf2955b4736012f21a08084056b19bcd7fee56048e004\
+e44984e2f411788efdc837a0d2e5abb7b555039fd243ac01f0fb2ed\
+1dec568280ce678e931868d23eb095fde9d3779191b8c0299d6e07b\
+bb283e6633451e535c45513b2d33c99ea17");
+	BN_dec2bn(&dsa_sign.r, "548099063082341131477253921760299949438196259240");
+	BN_dec2bn(&dsa_sign.s, "857042759984254168557880549501802188789837994940");
+
+//	BN_print_fp(stdout, dsa_sign.s);
+//	printf("\n");
+
+//	BN_dec2bn(&dsa_puk.g, "60");
+//	BN_dec2bn(&dsa_puk.p, "283");
+//	BN_dec2bn(&dsa_puk.q, "47");
+//	BN_dec2bn(&dsa_puk.xy, "158");
+//
+//	BN_dec2bn(&dsa_sign.r, "19");
+//	BN_dec2bn(&dsa_sign.s, "30");
+
+	if(dsa_calc_private_key_from_k(&dsa_pik, &dsa_sign, 65536, test_msg, strlen(test_msg), &dsa_puk)) {
+		unsigned char *dsa_pik_hex = BN_bn2hex(dsa_pik.xy);
+		printf("[s6c3] DSA private key: %s\n", dsa_pik_hex);
+
+		unsigned char dsa_pik_hex_sha1[SHA_DIGEST_LENGTH*2+1];
+		hash_sha1(dsa_pik_hex_sha1, dsa_pik_hex, strlen(dsa_pik_hex));
+		printf("[s6c3] SHA1(private key): %s\n", dsa_pik_hex_sha1);
+
+		OPENSSL_free(dsa_pik_hex);
+	} else {
+		printf("[s6c3] DSA private key *NOT* found!\n");
 	}
 
 	dsa_signature_free(&dsa_sign);
