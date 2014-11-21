@@ -35,8 +35,8 @@ Progress:
      Challenge 33 .. 40 [done]
 
     *** Set 6 ***
-     Challenge 41 .. 42 [done]
-     Challenge 43    [working]
+     Challenge 41 .. 43 [done]
+     Challenge 44    [working]
 
 How to use:
 

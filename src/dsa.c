@@ -327,11 +327,14 @@ int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signatu
 //	unsigned char *hash_hex = "29";
 	BN_hex2bn(&H, hash_hex);
 
+//	BN_print_fp(stdout, H);
+//	printf("\n");
+
 	// calc r^-1
 //	inv_mod(r_inv, i_pubkey->q, i_signature->r);
 	BN_mod_inverse(r_inv, i_signature->r, i_pubkey->q, ctx);
 
-	unsigned long int i;
+	unsigned long int i, j;
 	unsigned int success = 0;
 	dsa_signature_t dsa_sign;
 
@@ -342,18 +345,37 @@ int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signatu
 	BN_copy(o_privkey->p, i_pubkey->p);
 	BN_copy(o_privkey->q, i_pubkey->q);
 
-	for(i=6; i<=i_range; i++) {
+	for(i=1; i<=i_range; i++) {
 		BN_set_word(k, i);
 
 		BN_mod_mul(T0, i_signature->s, k, i_pubkey->q, ctx);
 		BN_mod_sub(T1, T0, H, i_pubkey->q, ctx);
 		BN_mod_mul(o_privkey->xy, T1, r_inv, i_pubkey->q, ctx);
 
+		/*unsigned char *key_str = BN_bn2hex(o_privkey->xy);
+		// convert to lower case
+		for(j=0; j<strlen(key_str); j++) {
+			key_str[j] = tolower(key_str[j]);
+		}
+		unsigned char sha1_key[SHA_DIGEST_LENGTH*2+1];
+		hash_sha1(sha1_key, key_str, strlen(key_str));
+		OPENSSL_free(key_str);
+
+		if(!strcmp(sha1_key, "0954edd5e0afe5542a4adf012611a91912a3ec16")) {
+			success = 1;
+			break;
+		}*/
+
 		dsa_sha1_sign_fixed_k(&dsa_sign, i_msg, i_msg_len, k, o_privkey);
-		if(dsa_sha1_sign_verify(i_msg, i_msg_len, &dsa_sign, i_pubkey)) {
+		if(!BN_cmp(dsa_sign.r, i_signature->r) && !BN_cmp(dsa_sign.s, i_signature->s)) {
 			success = 1;
 			break;
 		}
+		// doesn't work (why?):
+		/*if(dsa_sha1_sign_verify(i_msg, i_msg_len, &dsa_sign, i_pubkey)) {
+			success = 1;
+			break;
+		}*/
 	}
 
 	dsa_signature_free(&dsa_sign);

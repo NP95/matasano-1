@@ -127,6 +127,12 @@ bb283e6633451e535c45513b2d33c99ea17");
 
 	if(dsa_calc_private_key_from_k(&dsa_pik, &dsa_sign, 65536, test_msg, strlen(test_msg), &dsa_puk)) {
 		unsigned char *dsa_pik_hex = BN_bn2hex(dsa_pik.xy);
+		unsigned int i;
+
+		// convert to lower case
+		for(i=0; i<strlen(dsa_pik_hex); i++) {
+			dsa_pik_hex[i] = tolower(dsa_pik_hex[i]);
+		}
 		printf("[s6c3] DSA private key: %s\n", dsa_pik_hex);
 
 		unsigned char dsa_pik_hex_sha1[SHA_DIGEST_LENGTH*2+1];
