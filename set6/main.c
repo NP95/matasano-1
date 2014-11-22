@@ -127,7 +127,7 @@ bb283e6633451e535c45513b2d33c99ea17");
 //	BN_dec2bn(&dsa_sign.r, "19");
 //	BN_dec2bn(&dsa_sign.s, "30");
 
-	if(dsa_calc_private_key_from_k(&dsa_pik, &dsa_sign, 65536, test_msg, strlen(test_msg), &dsa_puk)) {
+	if(dsa_calc_private_key_from_k_range(&dsa_pik, &dsa_sign, 65536, test_msg, strlen(test_msg), &dsa_puk)) {
 		unsigned char *dsa_pik_hex = BN_bn2hex(dsa_pik.xy);
 		unsigned int i;
 
@@ -166,20 +166,6 @@ bb283e6633451e535c45513b2d33c99ea17");
 			"Yeah me shoes a an tear up an' now me toes is a show a ",
 			"Where me a born in are de one Toronto, so "
 	};
-	// coresponding SHA1 hashes for msgs
-	unsigned char *hashes[] = {
-			"a4db3de27e2db3e5ef085ced2bced91b82e0df19",
-			"a4db3de27e2db3e5ef085ced2bced91b82e0df19",
-			"21194f72fe39a80c9c20689b8cf6ce9b0e7e52d4",
-			"1d7aaaa05d2dee2f7dabdc6fa70b6ddab9c051c5",
-			"6bc188db6e9e6c7d796f7fdd7fa411776d7a9ff",
-			"5ff4d4e8be2f8aae8a5bfaabf7408bd7628f43c9",
-			"7d9abd18bbecdaa93650ecc4da1b9fcae911412",
-			"88b9e184393408b133efef59fcef85576d69e249",
-			"d22804c4899b522b23eda34d2137cd8cc22b9ce8",
-			"bc7ec371d951977cba10381da08fe934dea80314",
-			"d6340bfcda59b6b75b59ca634813d572de800e8f"
-	};
 	// signature r values for msgs
 	unsigned char *sig_r[] = {
 			"1105520928110492191417703162650245113664610474875",
@@ -211,6 +197,7 @@ bb283e6633451e535c45513b2d33c99ea17");
 
 	unsigned int i, j;
 	int identical_nonce[11];
+	BIGNUM *k = BN_new();
 
 	// init
 	BN_hex2bn(&dsa_puk.xy, "2d026f4bf30195ede3a088da85e398ef869611d0f68f07\
@@ -239,10 +226,44 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3\
 //		printf("[s6c4] id[%02d] = %02d\n", i, identical_nonce[i]);
 	}
 
+	int success = 0;
+
+	for(i=0; i<11; i++) {
+		j = identical_nonce[i];
+		if(j >= 0) {
+			if((success=dsa_calc_private_key_from_reused_k(&dsa_pik, k, &sigs[i], &sigs[j], msgs[i], strlen(msgs[i]), msgs[j], strlen(msgs[j]), &dsa_puk))) {
+				break;
+			}
+		}
+	}
+
+	if(success) {
+		unsigned char *dsa_pik_hex = BN_bn2hex(dsa_pik.xy);
+
+		// convert to lower case
+		for(i=0; i<strlen(dsa_pik_hex); i++) {
+			dsa_pik_hex[i] = tolower(dsa_pik_hex[i]);
+		}
+
+		printf("[s6c4] k = ");
+		BN_print_fp(stdout, k);
+		printf("\n[s6c4] DSA private key: %s\n", dsa_pik_hex);
+
+		unsigned char dsa_pik_hex_sha1[SHA_DIGEST_LENGTH*2+1];
+		hash_sha1(dsa_pik_hex_sha1, dsa_pik_hex, strlen(dsa_pik_hex));
+		printf("[s6c4] SHA1(private key): %s\n", dsa_pik_hex_sha1);
+
+		OPENSSL_free(dsa_pik_hex);
+	} else {
+		printf("[s6c3] DSA private key *NOT* found!\n");
+	}
+
 	// free
 	for(i=0; i<11; i++) {
 		dsa_signature_free(&sigs[i]);
 	}
+
+	BN_free(k);
 
 	dsa_key_free(&dsa_puk);
 	dsa_key_free(&dsa_pik);

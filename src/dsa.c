@@ -297,7 +297,7 @@ int dsa_sha1_sign_verify(unsigned char *i_msg, unsigned int i_msg_len, dsa_signa
  * that is known to be in a specific range.
  *
  * @return
- * 		1 on success, 0 if private could not be calculated.
+ * 		1 on success, 0 if private key could not be calculated.
  * @param o_privkey
  * 		Pointer to struct dsa_key_t that will hold the calculated private key.
  * @param i_signature
@@ -311,10 +311,51 @@ int dsa_sha1_sign_verify(unsigned char *i_msg, unsigned int i_msg_len, dsa_signa
  * @param i_pubkey
  * 		DSA public key.
  */
-int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signature, unsigned long int i_range, unsigned char *i_msg, unsigned int i_msg_len, dsa_key_t *i_pubkey)
+int dsa_calc_private_key_from_k_range(dsa_key_t *o_privkey, dsa_signature_t *i_signature, unsigned long int i_range, unsigned char *i_msg, unsigned int i_msg_len, dsa_key_t *i_pubkey)
+{
+	unsigned long int i;
+	unsigned int success = 0;
+
+	BIGNUM *k = BN_new();
+
+	for(i=1; i<=i_range; i++) {
+		BN_set_word(k, i);
+		if(dsa_calc_private_key_from_k(o_privkey, i_signature, k, i_msg, i_msg_len, i_pubkey)) {
+			success = 1;
+			break;
+		}
+	}
+
+	BN_free(k);
+
+	if(success) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+/*
+ * Calculates a DSA private key from a known/recovered DSA subkey k.
+ *
+ * @return
+ * 		1 on success, 0 if private key could not be calculated.
+ * @param o_privkey
+ * 		Pointer to struct dsa_key_t that will hold the calculated private key.
+ * @param i_signature
+ * 		Struct dsa_signature_t holding the DSA signature for a message.
+ * @param i_k
+ * 		Pointer to BIGNUM holding the DSA session key k.
+ * @param i_msg
+ * 		String holding the corresponding message.
+ * @param i_msg_len
+ * 		Length in bytes of the message.
+ * @param i_pubkey
+ * 		DSA public key.
+ */
+int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signature, BIGNUM *i_k, unsigned char *i_msg, unsigned int i_msg_len, dsa_key_t *i_pubkey)
 {
 	BIGNUM *H = BN_new();
-	BIGNUM *k = BN_new();
 	BIGNUM *r_inv = BN_new();
 	BIGNUM *T0 = BN_new();
 	BIGNUM *T1 = BN_new();
@@ -345,38 +386,19 @@ int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signatu
 	BN_copy(o_privkey->p, i_pubkey->p);
 	BN_copy(o_privkey->q, i_pubkey->q);
 
-	for(i=1; i<=i_range; i++) {
-		BN_set_word(k, i);
+	BN_mod_mul(T0, i_signature->s, i_k, i_pubkey->q, ctx);
+	BN_mod_sub(T1, T0, H, i_pubkey->q, ctx);
+	BN_mod_mul(o_privkey->xy, T1, r_inv, i_pubkey->q, ctx);
 
-		BN_mod_mul(T0, i_signature->s, k, i_pubkey->q, ctx);
-		BN_mod_sub(T1, T0, H, i_pubkey->q, ctx);
-		BN_mod_mul(o_privkey->xy, T1, r_inv, i_pubkey->q, ctx);
-
-		/*unsigned char *key_str = BN_bn2hex(o_privkey->xy);
-		// convert to lower case
-		for(j=0; j<strlen(key_str); j++) {
-			key_str[j] = tolower(key_str[j]);
-		}
-		unsigned char sha1_key[SHA_DIGEST_LENGTH*2+1];
-		hash_sha1(sha1_key, key_str, strlen(key_str));
-		OPENSSL_free(key_str);
-
-		if(!strcmp(sha1_key, "0954edd5e0afe5542a4adf012611a91912a3ec16")) {
-			success = 1;
-			break;
-		}*/
-
-		dsa_sha1_sign_fixed_k(&dsa_sign, i_msg, i_msg_len, k, o_privkey);
-		if(!BN_cmp(dsa_sign.r, i_signature->r) && !BN_cmp(dsa_sign.s, i_signature->s)) {
-			success = 1;
-			break;
-		}
-		// doesn't work (why?):
-		/*if(dsa_sha1_sign_verify(i_msg, i_msg_len, &dsa_sign, i_pubkey)) {
-			success = 1;
-			break;
-		}*/
+	dsa_sha1_sign_fixed_k(&dsa_sign, i_msg, i_msg_len, i_k, o_privkey);
+	if(!BN_cmp(dsa_sign.r, i_signature->r) && !BN_cmp(dsa_sign.s, i_signature->s)) {
+		success = 1;
 	}
+	// doesn't work (why?):
+	/*if(dsa_sha1_sign_verify(i_msg, i_msg_len, &dsa_sign, i_pubkey)) {
+			success = 1;
+			break;
+	}*/
 
 	dsa_signature_free(&dsa_sign);
 
@@ -385,7 +407,6 @@ int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signatu
 	BN_free(T0);
 	BN_free(T1);
 	BN_free(r_inv);
-	BN_free(k);
 	BN_free(H);
 
 	if(success) {
@@ -394,7 +415,6 @@ int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signatu
 		return 0;
 	}
 }
-
 /*
  * Checks if the same nonce (session value k) was used for two DSA signatures
  * that were generated using the same DSA domain parameters g, p, q.
@@ -415,5 +435,82 @@ int dsa_sign_nonce_cmp(dsa_signature_t *i_a, dsa_signature_t *i_b)
 		return 0;
 	} else {
 		return 1;
+	}
+}
+
+/*
+ * Calculates the DSA session key k and the DSA private key
+ * used for a given pair of DSA signatures that were generated using
+ * the same nonce (session key) k.
+ *
+ * @return
+ * 		1 on success, 0 if the DSA private key or nonce could not
+ * 		be recovered, -1 on error.
+ * @param o_privkey
+ * 		Pointer to dsa_key_t struct holding the recovered DSA private key.
+ * @param o_k
+ * 		Pointer to BIGNUM holding the nonce (session key) k for the provided
+ * 		signatures.
+ * @param i_a
+ * 		Pointer to dsa_signature_t struct holding the DSA signature of a
+ * 		message A.
+ * @param i_b
+ * 		Pointer to dsa_signature_t struct holding the DSA signature of a
+ * 		message B.
+ * @param i_msg_a
+ * 		Message A.
+ * @param i_msg_a_len
+ * 		Length in bytes of message A.
+ * @param i_msg_b
+ * 		Message B.
+ * @param i_msg_b_len
+ * 		Length in bytes of message B.
+ * @param i_pubkey
+ * 		DSA public key that was used for signing the messages A and B.
+ */
+int dsa_calc_private_key_from_reused_k(dsa_key_t *o_privkey, BIGNUM *o_k, dsa_signature_t *i_a, dsa_signature_t *i_b, unsigned char *i_msg_a, unsigned int i_msg_a_len, unsigned char *i_msg_b, unsigned int i_msg_b_len, dsa_key_t *i_pubkey)
+{
+	BIGNUM *T0 = BN_new();
+	BIGNUM *T1 = BN_new();
+	BIGNUM *T2 = BN_new();
+	BIGNUM *H_a = BN_new();
+	BIGNUM *H_b = BN_new();
+
+	BN_CTX *ctx = BN_CTX_new();
+
+	int success = 0;
+
+	unsigned char sha1_a[SHA_DIGEST_LENGTH*2+1];
+	unsigned char sha1_b[SHA_DIGEST_LENGTH*2+1];
+
+	hash_sha1(sha1_a, i_msg_a, i_msg_a_len);
+	BN_hex2bn(&H_a, sha1_a);
+	hash_sha1(sha1_b, i_msg_b, i_msg_b_len);
+	BN_hex2bn(&H_b, sha1_b);
+
+	// k = (H_a - H_b) * invmod(s_a - s_b) mod q
+	BN_mod_sub(T0, H_a, H_b, i_pubkey->q, ctx);
+	BN_mod_sub(T1, i_a->s, i_b->s, i_pubkey->q, ctx);
+	inv_mod(T2, i_pubkey->q, T1);
+	BN_mod_mul(o_k, T0, T2, i_pubkey->q, ctx);
+
+	success = dsa_calc_private_key_from_k(o_privkey, i_a, o_k, i_msg_a, i_msg_a_len, i_pubkey);
+
+	if(!success) {
+		success = dsa_calc_private_key_from_k(o_privkey, i_b, o_k, i_msg_b, i_msg_b_len, i_pubkey);
+	}
+
+	BN_CTX_free(ctx);
+
+	BN_free(H_a);
+	BN_free(H_b);
+	BN_free(T0);
+	BN_free(T1);
+	BN_free(T2);
+
+	if(success) {
+		return 1;
+	} else {
+		return 0;
 	}
 }

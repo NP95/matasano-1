@@ -64,8 +64,12 @@ void dsa_sha1_sign(dsa_signature_t *o_signature, unsigned char *i_msg, unsigned 
 void dsa_sha1_sign_fixed_k(dsa_signature_t *o_signature, unsigned char *i_msg, unsigned int i_msg_len, BIGNUM *i_k, dsa_key_t *i_privkey);
 // verfiy DSA-SHA1 signed message
 int dsa_sha1_sign_verify(unsigned char *i_msg, unsigned int i_msg_len, dsa_signature_t *i_signature, dsa_key_t *i_pubkey);
-// calculate DSA private key from small DSA subkey k
-int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signature, unsigned long int i_range, unsigned char *i_msg, unsigned int i_msg_len, dsa_key_t *i_pubkey);
+// calculate DSA private key from DSA subkey k range
+int dsa_calc_private_key_from_k_range(dsa_key_t *o_privkey, dsa_signature_t *i_signature, unsigned long int i_range, unsigned char *i_msg, unsigned int i_msg_len, dsa_key_t *i_pubkey);
+// calculate DSA private key from known DSA subkey k
+int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signature, BIGNUM *i_k, unsigned char *i_msg, unsigned int i_msg_len, dsa_key_t *i_pubkey);
+// calculate DSA subkey k and private key from two messages that were signed using the same subkey k (nonce, session key)
+int dsa_calc_private_key_from_reused_k(dsa_key_t *o_privkey, BIGNUM *o_k, dsa_signature_t *i_a, dsa_signature_t *i_b, unsigned char *i_msg_a, unsigned int i_msg_a_len, unsigned char *i_msg_b, unsigned int i_msg_b_len, dsa_key_t *i_pubkey);
 // checks if two DSA signatures were generated using the same nonce
 int dsa_sign_nonce_cmp(dsa_signature_t *i_a, dsa_signature_t *i_b);
 
