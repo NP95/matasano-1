@@ -73,6 +73,8 @@ int main(int argc, char *argv[])
 	free(sign_hex);
 	free(sign);
 
+	/**      Set 6 Challenge 43     **/
+	/** DSA key recovery from nonce **/
 	unsigned char sha1sum[41];
 	unsigned char *test_msg = "For those that envy a MC it can be hazardous to your health\n\
 So be friendly, a matter of life and death, just like a etch-a-sketch\n";
@@ -145,6 +147,103 @@ bb283e6633451e535c45513b2d33c99ea17");
 	}
 
 	dsa_signature_free(&dsa_sign);
+
+	/**   Set 6 Challenge 44    **/
+	/** DSA nonce recovery from **/
+	/**     repeated nonce     **/
+	dsa_signature_t sigs[11];
+	// input messages
+	unsigned char *msgs[] = {
+			"Listen for me, you better listen for me now. ",
+			"Listen for me, you better listen for me now. ",
+			"When me rockin' the microphone me rock on steady, ",
+			"Yes a Daddy me Snow me are de article dan. ",
+			"But in a in an' a out de dance em ",
+			"Aye say where you come from a, ",
+			"People em say ya come from Jamaica, ",
+			"But me born an' raised in the ghetto that I want yas to know, ",
+			"Pure black people mon is all I mon know. ",
+			"Yeah me shoes a an tear up an' now me toes is a show a ",
+			"Where me a born in are de one Toronto, so "
+	};
+	// coresponding SHA1 hashes for msgs
+	unsigned char *hashes[] = {
+			"a4db3de27e2db3e5ef085ced2bced91b82e0df19",
+			"a4db3de27e2db3e5ef085ced2bced91b82e0df19",
+			"21194f72fe39a80c9c20689b8cf6ce9b0e7e52d4",
+			"1d7aaaa05d2dee2f7dabdc6fa70b6ddab9c051c5",
+			"6bc188db6e9e6c7d796f7fdd7fa411776d7a9ff",
+			"5ff4d4e8be2f8aae8a5bfaabf7408bd7628f43c9",
+			"7d9abd18bbecdaa93650ecc4da1b9fcae911412",
+			"88b9e184393408b133efef59fcef85576d69e249",
+			"d22804c4899b522b23eda34d2137cd8cc22b9ce8",
+			"bc7ec371d951977cba10381da08fe934dea80314",
+			"d6340bfcda59b6b75b59ca634813d572de800e8f"
+	};
+	// signature r values for msgs
+	unsigned char *sig_r[] = {
+			"1105520928110492191417703162650245113664610474875",
+			"51241962016175933742870323080382366896234169532",
+			"228998983350752111397582948403934722619745721541",
+			"1099349585689717635654222811555852075108857446485",
+			"425320991325990345751346113277224109611205133736",
+			"486260321619055468276539425880393574698069264007",
+			"537050122560927032962561247064393639163940220795",
+			"826843595826780327326695197394862356805575316699",
+			"1105520928110492191417703162650245113664610474875",
+			"51241962016175933742870323080382366896234169532",
+			"228998983350752111397582948403934722619745721541"
+	};
+	// signature s values for msgs
+	unsigned char *sig_s[] = {
+			"1267396447369736888040262262183731677867615804316",
+			"29097472083055673620219739525237952924429516683",
+			"277954141006005142760672187124679727147013405915",
+			"1013310051748123261520038320957902085950122277350",
+			"203941148183364719753516612269608665183595279549",
+			"502033987625712840101435170279955665681605114553",
+			"1133410958677785175751131958546453870649059955513",
+			"559339368782867010304266546527989050544914568162",
+			"1021643638653719618255840562522049391608552714967",
+			"506591325247687166499867321330657300306462367256",
+			"458429062067186207052865988429747640462282138703"
+	};
+
+	unsigned int i, j;
+	int identical_nonce[11];
+
+	// init
+	BN_hex2bn(&dsa_puk.xy, "2d026f4bf30195ede3a088da85e398ef869611d0f68f07\
+13d51c9c1a3a26c95105d915e2d8cdf26d056b86b8a7b8\
+5519b1c23cc3ecdc6062650462e3063bd179c2a6581519\
+f674a61f1d89a1fff27171ebc1b93d4dc57bceb7ae2430\
+f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3\
+2971c3de5084cce04a2e147821");
+
+	for(i=0; i<11; i++) {
+		sigs[i].r = BN_new();
+		sigs[i].s = BN_new();
+		BN_dec2bn(&(sigs[i].r), sig_r[i]);
+		BN_dec2bn(&(sigs[i].s), sig_s[i]);
+		identical_nonce[i] = -1;
+	}
+
+	// build array containing info about reused nonces
+	for(i=0; i<10; i++) {
+		for(j=i+1; j<11; j++) {
+			if(!dsa_sign_nonce_cmp(&sigs[i], &sigs[j])) {
+				identical_nonce[i] = j;
+				break;
+			}
+		}
+//		printf("[s6c4] id[%02d] = %02d\n", i, identical_nonce[i]);
+	}
+
+	// free
+	for(i=0; i<11; i++) {
+		dsa_signature_free(&sigs[i]);
+	}
+
 	dsa_key_free(&dsa_puk);
 	dsa_key_free(&dsa_pik);
 

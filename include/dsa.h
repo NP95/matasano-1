@@ -66,6 +66,9 @@ void dsa_sha1_sign_fixed_k(dsa_signature_t *o_signature, unsigned char *i_msg, u
 int dsa_sha1_sign_verify(unsigned char *i_msg, unsigned int i_msg_len, dsa_signature_t *i_signature, dsa_key_t *i_pubkey);
 // calculate DSA private key from small DSA subkey k
 int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signature, unsigned long int i_range, unsigned char *i_msg, unsigned int i_msg_len, dsa_key_t *i_pubkey);
+// checks if two DSA signatures were generated using the same nonce
+int dsa_sign_nonce_cmp(dsa_signature_t *i_a, dsa_signature_t *i_b);
+
 /** test funcs **/
 
 #endif /* INCLUDE_DSA_H_ */

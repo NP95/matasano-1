@@ -394,3 +394,26 @@ int dsa_calc_private_key_from_k(dsa_key_t *o_privkey, dsa_signature_t *i_signatu
 		return 0;
 	}
 }
+
+/*
+ * Checks if the same nonce (session value k) was used for two DSA signatures
+ * that were generated using the same DSA domain parameters g, p, q.
+ *
+ * @return
+ * 		0 if the same nonce was used in both DSA signatures,
+ * 		1 otherwise.
+ * @param i_a
+ * 		Pointer to dsa_signature_t struct holding the first DSA signature.
+ * @param i_b
+ * 		Pointer to dsa_signature_t struct holding the second DSA signature.
+ */
+int dsa_sign_nonce_cmp(dsa_signature_t *i_a, dsa_signature_t *i_b)
+{
+	// r = (g^k mod p) mod q = const
+	// --> same nonce means same r values in sigs
+	if(!BN_cmp(i_a->r, i_b->r)) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
