@@ -40,3 +40,20 @@ unsigned int hash_sha1(unsigned char *o_hash_str, unsigned char *i_msg, unsigned
 
 	return SHA_DIGEST_LENGTH*2;
 }
+
+unsigned int hash_md5(unsigned char *o_hash_str, unsigned char *i_msg, unsigned int i_msg_len)
+{
+	unsigned int i;
+
+	unsigned char hash[MD5_DIGEST_LENGTH];
+	MD5_CTX md5;
+	MD5_Init(&md5);
+	MD5_Update(&md5, i_msg, i_msg_len);
+	MD5_Final(hash, &md5);
+	for(i = 0; i<MD5_DIGEST_LENGTH; i++) {
+		sprintf(o_hash_str + (2*i), "%02x", hash[i]);
+	}
+	o_hash_str[MD5_DIGEST_LENGTH*2] = 0;
+
+	return MD5_DIGEST_LENGTH*2;
+}
